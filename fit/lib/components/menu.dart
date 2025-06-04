@@ -10,8 +10,7 @@ import '../pages/Exercise/Cardio.dart';
 import '/pages/Program.dart';
 import '/pages/AboutApp.dart';
 import '/services/hive_service.dart';
-import '../pages/Nutrition/CalorieLog.dart';
-
+import '../pages/CalorieLog/CalorieLog.dart';
 class SideMenu extends StatefulWidget {
   @override
   _SideMenuState createState() => _SideMenuState();

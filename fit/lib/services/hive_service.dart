@@ -1,8 +1,10 @@
 
+import 'package:Fit/models/calorie_log.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_data.dart';
 import '../models/food_item.dart';
 import '../models/recipe.dart';
+import '../models/meal_data.dart';
 
 class HiveService {
 static const String userBoxName = 'userBox';
@@ -19,11 +21,15 @@ Hive.registerAdapter(UserDataAdapter());
 Hive.registerAdapter(FoodItemAdapter());
 Hive.registerAdapter(RecipeAdapter());
 Hive.registerAdapter(RecipeIngredientAdapter());
+Hive.registerAdapter(DayLogAdapter());
+Hive.registerAdapter(MealDataAdapter());
+
 
 // Open boxes
 await Hive.openBox<UserData>(userBoxName);
 await Hive.openBox<FoodItem>(foodItemBoxName);
 await Hive.openBox<Recipe>(recipeBoxName);
+await Hive.openBox('calorieLogBox');
 }
 
 static Future<void> saveRecipe(Recipe recipe) async {

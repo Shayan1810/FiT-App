@@ -4,10 +4,10 @@ import 'pages/home.dart';
 import 'services/hive_service.dart';
 
 Future main() async {
-WidgetsFlutterBinding.ensureInitialized();
-await HiveService.initHive();
+  WidgetsFlutterBinding.ensureInitialized();
+  await HiveService.initHive();
 
-runApp(MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {

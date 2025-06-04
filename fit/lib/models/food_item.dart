@@ -8,10 +8,10 @@ class FoodItem extends HiveObject {
   late String name;
 
   @HiveField(1)
-  late String tag; // MOVED: Tag field now comes after name
+  late String tag;
 
   @HiveField(2)
-  late String unit; // e.g., "100g", "1 cup", "1 piece"
+  late String unit;
 
   @HiveField(3)
   late double calories;
