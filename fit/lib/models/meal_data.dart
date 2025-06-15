@@ -4,7 +4,7 @@ import 'recipe.dart';
 
 part 'meal_data.g.dart';
 
-@HiveType(typeId: 2)
+@HiveType(typeId: 3)
 class MealData extends HiveObject {
   @HiveField(0)
   String mealName;

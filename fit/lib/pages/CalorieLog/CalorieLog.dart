@@ -18,7 +18,7 @@ class CalorieLog extends StatefulWidget {
 class _CalorieLogState extends State<CalorieLog> {
   late Box _logBox;
   DateTime selectedDate = DateTime.now();
-  late int mealCount;
+  late int mealCount = 3;
   late List<int> _mealIndices;
 
   static const int minMeals = 1;
@@ -327,9 +327,9 @@ class _CalorieLogState extends State<CalorieLog> {
             onSelected: _onMenuSelect,
             itemBuilder: (_) => [
               PopupMenuItem(
-                  value: 'father', child: Text('Father')),
+                  value: 'Food', child: Text('Food')),
               PopupMenuItem(
-                  value: 'mother', child: Text('Mother')),
+                  value: 'Recipe', child: Text('Recipe')),
               PopupMenuItem(
                   value: 'meals', child: Text('Total Meals')),
             ],
@@ -338,7 +338,6 @@ class _CalorieLogState extends State<CalorieLog> {
       ),
       body: Column(
         children: [
-          // Date selector with tap-to-pick
           Container(
             color: Colors.grey.shade100,
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -370,7 +369,6 @@ class _CalorieLogState extends State<CalorieLog> {
             ),
           ),
 
-          // Daily totals
           Padding(
             padding: const EdgeInsets.symmetric(
                 vertical: 16, horizontal: 12),
@@ -418,7 +416,6 @@ class _CalorieLogState extends State<CalorieLog> {
             ),
           ),
 
-          // Meal cards + Extras
           Expanded(
             child: ListView.builder(
               itemCount: _mealIndices.length,

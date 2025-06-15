@@ -21,6 +21,19 @@ dependencies:
   image_picker: ^1.0.7
   permission_handler: ^11.3.0
 
+  google_generative_ai: ^0.2.2
+
+
+  #graph
+  syncfusion_flutter_charts: ^20.2.54
+
+dependency_overrides:
+  syncfusion_flutter_charts:
+    git:
+      url: https://github.com/syncfusion/flutter-widgets.git
+      path: packages/syncfusion_flutter_charts
+      ref: master
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

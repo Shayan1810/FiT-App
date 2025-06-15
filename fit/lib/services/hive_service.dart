@@ -1,10 +1,9 @@
-
-import 'package:Fit/models/calorie_log.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_data.dart';
 import '../models/food_item.dart';
 import '../models/recipe.dart';
 import '../models/meal_data.dart';
+import '../models/activity_data.dart';
 
 class HiveService {
 static const String userBoxName = 'userBox';
@@ -12,24 +11,27 @@ static const String macroBoxName = 'macroBox';
 static const String powerBoxName = 'powerBox';
 static const String foodItemBoxName = 'foodItemBox';
 static const String recipeBoxName = 'recipeBox';
+static const String _activityBox = 'activity_data';
+static const String dayLogBox = 'activity_data';
+
 
 static Future<void> initHive() async {
 await Hive.initFlutter();
 
-// Register adapters
+
 Hive.registerAdapter(UserDataAdapter());
 Hive.registerAdapter(FoodItemAdapter());
 Hive.registerAdapter(RecipeAdapter());
 Hive.registerAdapter(RecipeIngredientAdapter());
-Hive.registerAdapter(DayLogAdapter());
 Hive.registerAdapter(MealDataAdapter());
+Hive.registerAdapter(ActivityDataAdapter());
 
-
-// Open boxes
 await Hive.openBox<UserData>(userBoxName);
 await Hive.openBox<FoodItem>(foodItemBoxName);
 await Hive.openBox<Recipe>(recipeBoxName);
 await Hive.openBox('calorieLogBox');
+await Hive.openBox<ActivityData>(_activityBox);
+
 }
 
 static Future<void> saveRecipe(Recipe recipe) async {
@@ -43,7 +45,10 @@ static Future<void> saveRecipe(Recipe recipe) async {
     rethrow;
   }
 }
-// User Data Methods
+
+static ActivityData? getActivityData() => Hive.box<ActivityData>(_activityBox).get('current_user');
+static Future<void> saveActivityData(ActivityData data) => Hive.box<ActivityData>(_activityBox).put('current_user', data);
+
 static Future<void> saveUserData(UserData userData) async {
 final box = Hive.box<UserData>(userBoxName);
 await box.put('current_user', userData);
@@ -165,19 +170,16 @@ static List<FoodItem> searchFoodItems(String query) {
   }
 }
 
-// Get user's profile image path
 static String? getUserProfileImage() {
 final userData = getUserData();
 return userData?.profileImagePath;
 }
 
-// Get user's name for display
 static String getUserName() {
 final userData = getUserData();
 return userData?.name ?? 'User';
 }
 
-// Utility Methods
 static Future<void> clearAllData() async {
 await Hive.box<UserData>(userBoxName).clear();
 }

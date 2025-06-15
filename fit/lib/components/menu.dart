@@ -4,10 +4,8 @@ import 'dart:io';
 import '/pages/YourProfile.dart';
 import '../pages/Nutrition/YourRecipe.dart';
 import '../pages/Nutrition/YourFoodItems.dart';
-import '../pages/Others/PowerLifting.dart';
-import '../pages/Exercise/StrengthTraining.dart';
-import '../pages/Exercise/Cardio.dart';
-import '/pages/Program.dart';
+import '../pages/Exercise.dart';
+import '/pages/Goal.dart';
 import '/pages/AboutApp.dart';
 import '/services/hive_service.dart';
 import '../pages/CalorieLog/CalorieLog.dart';
@@ -27,7 +25,7 @@ class _SideMenuState extends State<SideMenu> {
 
   void _loadUserData() {
     final userData = HiveService.getUserData();
-    if (userData != null) {
+    if (userData != null && mounted) {
       setState(() {
         userName = userData.name;
       });
@@ -164,42 +162,21 @@ class _SideMenuState extends State<SideMenu> {
                 }),
               ],
             ),
-            
-            // Exercise - Expandable
-            _buildExpansionTile(
-              title: 'Exercise',
-              icon: Icons.fitness_center,
-              children: [
-                _buildMenuItem('PowerLifting', Icons.sports_gymnastics, () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => PowerLifting()),
-                  );
-                }),
-                _buildMenuItem('Strength Training', Icons.sports_handball, () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => StrengthTraining()),
-                  );
-                }),
-                _buildMenuItem('Cardiovascular', Icons.favorite, () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => Cardio()),
-                  );
-                }),
-              ],
-            ),
-            
-            // Program - Single Item
-            _buildSingleMenuItem('Program', Icons.calendar_today, () {
+
+            _buildSingleMenuItem('Calories Burned', Icons.fitness_center, () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => Program()),
+                MaterialPageRoute(builder: (context) => ExercisePage()),
+              );
+            }),
+            
+            // Program - Single Item
+            _buildSingleMenuItem('Goals', Icons.calendar_today, () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => GoalPage()),
               );
             }),
             

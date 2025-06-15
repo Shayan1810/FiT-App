@@ -11,8 +11,10 @@ class MealCard extends StatelessWidget {
   final VoidCallback onAddNote;
   final void Function(int itemIndex, int newQuantity) onEditQuantity;
   final void Function(int itemIndex) onRemove;
+  
 
   const MealCard({
+    Key? key,
     required this.title,
     required this.mealData,
     required this.onAddFood,
@@ -20,10 +22,11 @@ class MealCard extends StatelessWidget {
     required this.onAddNote,
     required this.onEditQuantity,
     required this.onRemove,
-  });
+  }) : super(key: key);
 
+  
   Future<void> _showQuantityDialog(
-      BuildContext context, int index) async {
+    BuildContext context, int index) async {
     final item = mealData.items[index];
     final unit = (item as dynamic).unit ?? '';
     int initialQty = mealData.quantities[index];
@@ -161,7 +164,6 @@ class MealCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header + day totals
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -223,8 +225,16 @@ class MealCard extends StatelessWidget {
             // Item list
             ...List.generate(items.length, (i) {
               final item = items[i];
-              final name = item.name;
-              final tag = item.tag;
+              final name = (item as dynamic).name;
+              final tag  = (item as dynamic).tag;
+              final qty = mealData.quantities.length > i
+                ? mealData.quantities[i]
+                : 1;
+            final unit = item is FoodItem
+                ? item.unit
+                : item is Recipe
+                    ? item.unit
+                    : '';
 
               return Padding(
                 padding: EdgeInsets.only(top: 6),
@@ -234,7 +244,7 @@ class MealCard extends StatelessWidget {
                   SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '$name ($tag)',
+                      '$name ($tag) • $qty x $unit',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),

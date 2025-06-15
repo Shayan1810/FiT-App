@@ -1,3 +1,4 @@
+import 'package:Fit/pages/CalorieLog/CalorieLog.dart';
 import 'package:flutter/material.dart';
 import '/components/calorie-change-card.dart';
 import '/components/calorie-in-card.dart';
@@ -6,10 +7,12 @@ import '/components/menu.dart';
 import '/components/weight-card.dart';
 import '/components/Macro.dart';
 import '/components/Expend.dart';
-import '/components/Power.dart';
 import 'Others/Weight.dart';
-import '/pages/Nutrition/IN.dart';
-import '/pages/Exercise/OUT.dart';
+import '../services/hive_service.dart';
+import '../models/user_data.dart';
+import '../models/activity_data.dart';
+import '../models/calorie_log.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -23,30 +26,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _floatController;
   late AnimationController _cardSwitchController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
+
   int caloriesIn = 0;
   int caloriesOut = 0;
   double currentWeight = 65.0;
-  int selectedCardIndex = 0; // 0: Macro, 1: Expend, 2: Power
-  int _previousCardIndex = 0; // Track previous selection for direction
-  
-  // Macronutrient data
-  int proteinConsumed = 45;
-  int proteinTotal = 150;
-  int carbConsumed = 120;
-  int carbTotal = 300;
-  int fatConsumed = 35;
-  int fatTotal = 80;
-  
-  // Energy expenditure data
-  int bmr = 1650;
-  int neatCardio = 450;
-  int foodThermogenesis = 120;
+  int selectedCardIndex = 0;
+  int _previousCardIndex = 0;
 
-  // Power lifting data
-  int squats = 150;
-  int benchPress = 120;
-  int deadlift = 200;
+  int get proteinConsumed => (todayLog.meals).fold(0, (sum, meal) => sum + meal.protein.toInt());
+  int get carbConsumed => (todayLog.meals).fold(0, (sum, meal) => sum + meal.carbs.toInt());
+  int get fatConsumed => (todayLog.meals).fold(0, (sum, meal) => sum + meal.fat.toInt());
+
+  int get bmr => userData?.bmr?.toInt() ?? 1650;
+  int get neatCardio => activityData?.neatCalories.toInt() ?? 450;
+  double get foodThermogenesis => (proteinConsumed + (carbConsumed + fatConsumed) * (13 / 90)).toDouble();
+  int get totalCaloriesOut => (bmr + foodThermogenesis + neatCardio).toInt();
+
+  UserData? get userData => HiveService.getUserData();
+  ActivityData? get activityData => HiveService.getActivityData();
+  DayLog get todayLog => _getTodayLog();
+
+  DayLog _getTodayLog() {
+    final now = DateTime.now();
+    final log = _logBox.values.firstWhere(
+      (log) => log.date.year == now.year &&
+               log.date.month == now.month &&
+               log.date.day == now.day,
+      orElse: () => DayLog(date: now),
+    );
+
+    if (!_logBox.values.contains(log)) {
+      _logBox.put(_getTodayKey(), log);
+    }
+    return log;
+  }
+
+  String _getTodayKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month}-${now.day}';
+  }
+
+  Box get _logBox => Hive.box('calorieLogBox');
 
   @override
   void initState() {
@@ -55,18 +75,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       duration: Duration(seconds: 20),
       vsync: this,
     )..repeat();
-    
     _floatController = AnimationController(
       duration: Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: true);
-    
     _cardSwitchController = AnimationController(
       duration: Duration(milliseconds: 600),
       vsync: this,
     );
-    
-    _checkAndResetCalories();
+    _updateCalorieData();
+  }
+
+  void _updateCalorieData() {
+    setState(() {
+      // Use type-safe box access
+      caloriesIn = (_logBox.values.expand((log) => log.meals)).fold(
+        0, 
+        (sum, meal) => (sum + meal.calorie as num).toInt()
+      );
+      caloriesOut = totalCaloriesOut;
+      currentWeight = userData?.weight ?? 65.0;
+    });
   }
 
   void _checkAndResetCalories() {
@@ -94,7 +123,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         builder: (context) => WeightPage(currentWeight: currentWeight),
       ),
     );
-    
     if (result != null && result is double) {
       setState(() {
         currentWeight = result;
@@ -118,11 +146,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return MacroCard(
           key: ValueKey('macro'),
           proteinConsumed: proteinConsumed,
-          proteinTotal: proteinTotal,
+          proteinTotal: 100,
           carbConsumed: carbConsumed,
-          carbTotal: carbTotal,
+          carbTotal: 100,
           fatConsumed: fatConsumed,
-          fatTotal: fatTotal,
+          fatTotal: 30,
           floatController: _floatController,
         );
       case 1:
@@ -130,26 +158,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           key: ValueKey('expend'),
           bmr: bmr,
           neatCardio: neatCardio,
-          foodThermogenesis: foodThermogenesis,
-          floatController: _floatController,
-        );
-      case 2:
-        return PowerCard(
-          key: ValueKey('power'),
-          squats: squats,
-          benchPress: benchPress,
-          deadlift: deadlift,
+          foodThermogenesis: foodThermogenesis.toInt(),
           floatController: _floatController,
         );
       default:
         return MacroCard(
           key: ValueKey('macro'),
           proteinConsumed: proteinConsumed,
-          proteinTotal: proteinTotal,
+          proteinTotal: 100,
           carbConsumed: carbConsumed,
-          carbTotal: carbTotal,
+          carbTotal: 100,
           fatConsumed: fatConsumed,
-          fatTotal: fatTotal,
+          fatTotal: 30,
           floatController: _floatController,
         );
     }
@@ -184,12 +204,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             icon: Icons.local_fire_department,
             isSelected: selectedCardIndex == 1,
             onTap: () => _selectCard(1),
-          ),
-          SizedBox(width: 8),
-          _buildCircularButton(
-            icon: Icons.flash_on,
-            isSelected: selectedCardIndex == 2,
-            onTap: () => _selectCard(2),
           ),
         ],
       ),
@@ -231,6 +245,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  String _getCardKey(int index) {
+    switch (index) {
+      case 0:
+        return 'macro';
+      case 1:
+        return 'expend';
+      default:
+        return 'macro';
+    }
   }
 
   @override
@@ -338,7 +363,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => InPage()),
+                                MaterialPageRoute(builder: (context) => CalorieLog()),
                               );
                             },
                             child: CalorieInCard(
@@ -350,18 +375,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         SizedBox(width: 12),
                         Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => OutPage()),
-                              );
-                            },
-                            child: CalorieOutCard(
-                              caloriesOut: caloriesOut,
-                              floatController: _floatController,
-                              delay: 0.2,
-                            ),
+                          child: CalorieOutCard(
+                            caloriesOut: caloriesOut,
+                            floatController: _floatController,
+                            delay: 0.2,
                           ),
                         ),
                       ],
@@ -392,30 +409,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
               SizedBox(height: 24),
-              
-              // Enhanced AnimatedSwitcher with Bidirectional Slide Animation
+
               AnimatedSwitcher(
                 duration: Duration(milliseconds: 500),
                 reverseDuration: Duration(milliseconds: 500),
                 switchInCurve: Curves.easeInOutCubic,
                 switchOutCurve: Curves.easeInOutCubic,
                 transitionBuilder: (Widget child, Animation<double> animation) {
-                  // Determine the direction of movement
                   bool movingForward = selectedCardIndex > _previousCardIndex;
                   bool movingBackward = selectedCardIndex < _previousCardIndex;
-                  
-                  // Create different animations for incoming and outgoing
                   if (child.key == ValueKey(_getCardKey(selectedCardIndex))) {
-                    // This is the incoming card
                     Offset beginOffset;
                     if (movingForward) {
-                      beginOffset = Offset(1.0, 0.0); // Come from right
+                      beginOffset = Offset(1.0, 0.0);
                     } else if (movingBackward) {
-                      beginOffset = Offset(-1.0, 0.0); // Come from left
+                      beginOffset = Offset(-1.0, 0.0);
                     } else {
-                      beginOffset = Offset.zero; // No movement
+                      beginOffset = Offset.zero;
                     }
-                    
                     return SlideTransition(
                       position: Tween<Offset>(
                         begin: beginOffset,
@@ -436,16 +447,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     );
                   } else {
-                    // This is the outgoing card
                     Offset endOffset;
                     if (movingForward) {
-                      endOffset = Offset(-1.0, 0.0); // Exit to left
+                      endOffset = Offset(-1.0, 0.0);
                     } else if (movingBackward) {
-                      endOffset = Offset(1.0, 0.0); // Exit to right
+                      endOffset = Offset(1.0, 0.0);
                     } else {
-                      endOffset = Offset.zero; // No movement
+                      endOffset = Offset.zero;
                     }
-                    
                     return SlideTransition(
                       position: Tween<Offset>(
                         begin: Offset.zero,
@@ -478,13 +487,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 },
                 child: _buildSelectedCard(),
               ),
-              
-              // Circular Button Bar matching the image
               SizedBox(height: 20),
               _buildCircularButtonBar(),
-              
               SizedBox(height: 24),
-              // Removed ExpendCard from here as requested
               _build3DCaloriesSection(),
               SizedBox(height: 24),
               _build3DStepsSection(),
@@ -499,20 +504,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  String _getCardKey(int index) {
-    switch (index) {
-      case 0:
-        return 'macro';
-      case 1:
-        return 'expend';
-      case 2:
-        return 'power';
-      default:
-        return 'macro';
-    }
-  }
-
-  // Keep all other existing methods unchanged
   Widget _build3DCaloriesSection() {
     return Container();
   }
@@ -537,20 +528,15 @@ class ActivityChartPainter extends CustomPainter {
       ..color = Color(0xFF8B7CF6)
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-
     final fillPaint = Paint()
       ..color = Color(0xFF8B7CF6).withOpacity(0.2)
       ..style = PaintingStyle.fill;
-
     final path = Path();
     final fillPath = Path();
-
     List<double> points = [0.3, 0.7, 0.4, 0.8, 0.6, 0.9, 0.5];
-    
     for (int i = 0; i < points.length; i++) {
       double x = (size.width / (points.length - 1)) * i;
       double y = size.height * (1 - points[i]);
-      
       if (i == 0) {
         path.moveTo(x, y);
         fillPath.moveTo(x, size.height);
@@ -560,10 +546,8 @@ class ActivityChartPainter extends CustomPainter {
         fillPath.lineTo(x, y);
       }
     }
-    
     fillPath.lineTo(size.width, size.height);
     fillPath.close();
-
     canvas.drawPath(fillPath, fillPaint);
     canvas.drawPath(path, paint);
   }

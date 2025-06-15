@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'recipe.g.dart';
 
-@HiveType(typeId: 4)
+@HiveType(typeId: 1)
 class RecipeIngredient extends HiveObject {
   @HiveField(0)
   late String foodItemName; // Store food item name for reference
@@ -36,7 +36,7 @@ class RecipeIngredient extends HiveObject {
   });
 }
 
-@HiveType(typeId: 5)
+@HiveType(typeId: 2)
 class Recipe extends HiveObject {
   @HiveField(0)
   late String name;
