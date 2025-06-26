@@ -145,35 +145,38 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       case 0:
         return MacroCard(
           key: ValueKey('macro'),
-          proteinConsumed: proteinConsumed,
-          proteinTotal: 100,
-          carbConsumed: carbConsumed,
-          carbTotal: 100,
-          fatConsumed: fatConsumed,
-          fatTotal: 30,
+          proteinConsumed: 210,
+          proteinTotal: 150,
+          carbConsumed: 215,
+          carbTotal: 130,
+          fatConsumed: 220,
+          fatTotal: 60,
           floatController: _floatController,
         );
       case 1:
         return ExpendCard(
           key: ValueKey('expend'),
-          bmr: bmr,
-          neatCardio: neatCardio,
-          foodThermogenesis: foodThermogenesis.toInt(),
+          bmr: 1532,
+          neatCardio: 68,
+          foodThermogenesis: 250,
           floatController: _floatController,
         );
       default:
         return MacroCard(
           key: ValueKey('macro'),
-          proteinConsumed: proteinConsumed,
-          proteinTotal: 100,
-          carbConsumed: carbConsumed,
-          carbTotal: 100,
-          fatConsumed: fatConsumed,
-          fatTotal: 30,
+          proteinConsumed: 210,
+          proteinTotal: 150,
+          carbConsumed: 215,
+          carbTotal: 130,
+          fatConsumed: 220,
+          fatTotal: 60,
           floatController: _floatController,
         );
     }
   }
+
+  int alpha = 3680;
+  int beta = 1600;
 
   Widget _buildCircularButtonBar() {
     return Container(
@@ -277,7 +280,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hi, Shayan',
+                          'Hi',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -367,7 +370,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               );
                             },
                             child: CalorieInCard(
-                              caloriesIn: caloriesIn,
+                              caloriesIn: alpha,
                               floatController: _floatController,
                               delay: 0.0,
                             ),
@@ -376,7 +379,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         SizedBox(width: 12),
                         Expanded(
                           child: CalorieOutCard(
-                            caloriesOut: caloriesOut,
+                            caloriesOut: beta,
                             floatController: _floatController,
                             delay: 0.2,
                           ),
@@ -388,8 +391,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       children: [
                         Expanded(
                           child: CalorieChangeCard(
-                            caloriesIn: caloriesIn,
-                            caloriesOut: caloriesOut,
+                            caloriesIn: alpha,
+                            caloriesOut: beta,
                             floatController: _floatController,
                             delay: 0.1,
                           ),

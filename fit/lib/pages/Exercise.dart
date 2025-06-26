@@ -3,7 +3,6 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../models/user_data.dart';
 import '../../models/activity_data.dart';
 import '../../services/hive_service.dart';
-import '../../services/samsung_health_service.dart';
 
 class ExercisePage extends StatefulWidget {
   @override
@@ -96,23 +95,6 @@ Provide only the numerical result without any units or explanations.
     return bmr;
   }
 
-  void _handleIntegrationModeChange(Set<IntegrationMode> newSelection) async {
-    if (newSelection.isEmpty) return;
-    final mode = newSelection.first;
-    
-    if (mode == IntegrationMode.samsung) {
-      final calories = await SamsungHealthService.getNeatCalories();
-      await HiveService.saveActivityData(ActivityData(neatCalories: calories));
-      
-      setState(() {
-        _integrationMode = mode;
-        _neatCalories = calories;
-      });
-    } else {
-      setState(() => _integrationMode = mode);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,7 +117,6 @@ Provide only the numerical result without any units or explanations.
                 ),
               ],
               selected: {_integrationMode},
-              onSelectionChanged: _handleIntegrationModeChange,
             ),
             
             const SizedBox(height: 20),
