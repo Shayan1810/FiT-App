@@ -1,62 +1,60 @@
-name: Fit
-description: "MDG Nebula Project"
+name: fit
+description: "FiT — an offline-first, all-in-one health tracker (nutrition, gym, sleep, steps) with a scientific daily coach. MDG Nebula Project."
 
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.1
+  sdk: ^3.8.0
 
 dependencies:
   flutter:
     sdk: flutter
-  intl: ^0.18.0
 
-  # hive database
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
+  # State management (BLoC pattern)
+  flutter_bloc: ^9.1.1
+  equatable: ^3.0.0
 
-  # for picking profile picture
-  image_picker: ^1.0.7
-  permission_handler: ^11.3.0
+  # Offline-first NoSQL storage (Hive Community Edition, drop-in Hive successor)
+  hive_ce: ^2.20.1
+  hive_ce_flutter: ^2.4.0
 
-  google_generative_ai: ^0.2.2
+  # Dependency injection (service locator used by core/di/injector.dart)
+  get_it: ^9.3.0
 
+  # Networking (Gemini REST) + connectivity awareness for the offline queue
+  http: ^1.6.0
+  connectivity_plus: ^7.3.2
 
-  #graph
-  syncfusion_flutter_charts: ^20.2.54
+  # Samsung Health -> Health Connect -> FiT
+  health: ^13.3.2
 
-dependency_overrides:
-  syncfusion_flutter_charts:
-    git:
-      url: https://github.com/syncfusion/flutter-widgets.git
-      path: packages/syncfusion_flutter_charts
-      ref: master
+  # Utilities
+  intl: ^0.20.3
+  image_picker: ^1.2.3
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # hive database generators
-  build_runner: ^2.4.15
-  hive_generator: ^2.0.1
-
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.5
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/logo_tile.png
 
-  # assets:
-    
   fonts:
     - family: Poppins
-      fonts: 
-        - asset: fonts/Poppins-bold.ttf
-          weight: 700
-        - asset: fonts/Poppins-Medium.ttf
-          weight: 500
+      fonts:
         - asset: fonts/Poppins-Regular.ttf
           weight: 400
+        - asset: fonts/Poppins-Medium.ttf
+          weight: 500
         - asset: fonts/Poppins-SemiBold.ttf
           weight: 600
+        - asset: fonts/Poppins-Bold.ttf
+          weight: 700

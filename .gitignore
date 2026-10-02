@@ -1,0 +1,14 @@
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Build output
+dist/
+
+# Private documents (kept off GitHub)
+Readme.pdf
+rollback.md
+docs/handbook/
+__pycache__/
