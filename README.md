@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Shayan1810/FiT-App/releases/latest"><img src="https://img.shields.io/github/v/release/Shayan1810/FiT-App?label=release&color=7ED321" alt="Latest release"/></a>
+  <a href="https://github.com/Shayan1810/FiT-App/releases/latest"><img src="https://img.shields.io/github/v/release/Shayan1810/FiT-App?sort=semver&display_name=tag&label=release&color=7ED321&cacheSeconds=600" alt="Latest release"/></a>
   <a href="https://github.com/Shayan1810/FiT-App/actions/workflows/release.yml"><img src="https://github.com/Shayan1810/FiT-App/actions/workflows/release.yml/badge.svg" alt="Build"/></a>
   <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+"/>
   <img src="https://img.shields.io/badge/iOS-15%2B-000000?logo=apple&logoColor=white" alt="iOS 15+"/>
