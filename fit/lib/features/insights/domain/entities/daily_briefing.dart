@@ -1,4 +1,5 @@
 import '../../../nutrition/domain/entities/nutrition_facts.dart';
+import '../../../transformation/domain/calculators/transformation_calculator.dart';
 import '../../../workout/domain/entities/exercise.dart';
 import '../calculators/energy_calculator.dart';
 import '../calculators/nutrition_targets_calculator.dart';
@@ -8,7 +9,7 @@ import '../calculators/training_load_calculator.dart';
 import '../calculators/weight_trend_calculator.dart';
 
 /// Area an insight is about (drives its icon and colour).
-enum InsightCategory { sleep, nutrition, training, activity, body, hydration }
+enum InsightCategory { sleep, nutrition, training, activity, body, hydration, plan }
 
 /// Emotional tone of an insight.
 enum InsightTone { positive, info, warning, alert }
@@ -149,6 +150,7 @@ class DailyBriefing {
     required this.load,
     required this.weightTrend,
     required this.week,
+    this.transformation,
   });
 
   final DateTime generatedAt;
@@ -167,4 +169,7 @@ class DailyBriefing {
 
   /// Last 7 days of intake vs expenditure, oldest first.
   final List<DayEnergy> week;
+
+  /// Progress of the active transformation (Transformation mode only).
+  final TransformationStatus? transformation;
 }

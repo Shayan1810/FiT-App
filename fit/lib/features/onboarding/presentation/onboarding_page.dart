@@ -298,6 +298,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
       ),
     ],
     const SizedBox(height: 12),
-    Pill('Tip: connect ${HealthBrand.app} later in Train → Connect', icon: Icons.favorite_rounded),
+    Pill('Tip: connect ${HealthBrand.app} later in Train > Connect', icon: Icons.favorite_rounded),
   ]);
 }

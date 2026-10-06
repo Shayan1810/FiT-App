@@ -34,6 +34,9 @@ enum EntrySource {
   cache,
   manual,
 
+  /// Logged by ticking a planned meal in Transformation mode.
+  plan,
+
   /// Logged while offline; waiting for the sync queue to analyse it.
   pending,
 }

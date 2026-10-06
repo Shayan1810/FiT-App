@@ -1,7 +1,9 @@
+import 'package:fit/core/dev/demo_transformation.dart';
 import 'package:fit/core/di/injector.dart';
 import 'package:fit/features/insights/domain/usecases/build_health_snapshot.dart';
 import 'package:fit/features/progress/domain/get_progress.dart';
 import 'package:fit/features/progress/domain/progress_calculator.dart';
+import 'package:fit/features/transformation/domain/repositories/transformation_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_env.dart';
@@ -25,7 +27,8 @@ void main() {
         expect(s.values, hasLength(n), reason: s.id);
         if (s.secondary != null) expect(s.secondary, hasLength(n), reason: s.id);
       }
-      for (final c in ProgressCategory.values) {
+      expect(r.of(ProgressCategory.plan), isEmpty); // General mode
+      for (final c in ProgressCategory.values.where((c) => c != ProgressCategory.plan)) {
         expect(r.of(c).any((s) => s.count > 0), isTrue, reason: '${c.label} @ $days d');
       }
     }
@@ -52,5 +55,18 @@ void main() {
       expect(e.volume[i], greaterThanOrEqualTo(0));
     }
     expect(r.weeklySets.values.expand((w) => w).fold<int>(0, (a, b) => a + b), greaterThan(0));
+  });
+
+  test('Transformation mode adds plan series over the plan period', () async {
+    await seed();
+    await DemoTransformation.seed(sl<TransformationRepository>(), daysAgo: 12);
+    final r = (await GetProgress(sl<BuildHealthSnapshot>(), useIsolate: false)(13))!;
+    final plan = r.of(ProgressCategory.plan);
+    expect(plan.map((s) => s.id), containsAll(['plan_fat', 'plan_weight', 'plan_adherence', 'plan_skin']));
+    final adherence = plan.firstWhere((s) => s.id == 'plan_adherence');
+    expect(adherence.values.whereType<double>(), everyElement(inInclusiveRange(0, 100)));
+    expect(adherence.count, greaterThanOrEqualTo(12));
+    final fat = plan.firstWhere((s) => s.id == 'plan_fat');
+    expect(fat.values.first, isNotNull);
   });
 }

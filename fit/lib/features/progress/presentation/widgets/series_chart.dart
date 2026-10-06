@@ -169,7 +169,7 @@ class _SeriesPainter extends CustomPainter {
       final v = lo + (hi - lo) * k / 3;
       final y = yOf(v);
       canvas.drawLine(Offset(left, y), Offset(size.width, y), grid);
-      final tp = _text(_compact(v));
+      final tp = _text(_compact(v, fine: hi - lo < 10));
       tp.paint(canvas, Offset(left - tp.width - 6, y - tp.height / 2));
     }
 
@@ -310,8 +310,9 @@ class _SeriesPainter extends CustomPainter {
     if (pts.length == 1) canvas.drawCircle(pts.first, 3, Paint()..color = c);
   }
 
-  String _compact(double v) {
+  String _compact(double v, {bool fine = false}) {
     final a = v.abs();
+    if (fine && a < 1000) return v.toStringAsFixed(1);
     if (a >= 10000) return '${(v / 1000).toStringAsFixed(0)}k';
     if (a >= 1000) return '${(v / 1000).toStringAsFixed(1)}k';
     if (a < 10 && decimals > 0) return v.toStringAsFixed(min(decimals, 2));

@@ -1,5 +1,9 @@
 import 'package:fit/app.dart';
+import 'package:fit/core/dev/demo_transformation.dart';
+import 'package:fit/core/di/injector.dart';
+import 'package:fit/core/utils/date_utils.dart';
 import 'package:fit/core/widgets/nav_bar_3d.dart';
+import 'package:fit/features/transformation/domain/repositories/transformation_repository.dart';
 import 'package:fit/features/coach/presentation/coach_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,7 +39,7 @@ void main() {
 
     await t.tap(find.text("Let's start"));
     await settle(t, 800);
-    await t.enterText(find.byType(TextField).first, 'Shayan');
+    await t.enterText(find.byType(TextField).first, 'Alex');
     await t.pump();
     await t.tap(find.text('Next'));
     await settle(t, 800);
@@ -46,7 +50,7 @@ void main() {
     await t.tap(find.text('Finish'));
     await settle(t, 2500);
 
-    expect(find.text('Hi, Shayan'), findsOneWidget);
+    expect(find.text('Hi, Alex'), findsOneWidget);
     expect(find.text('Calories IN'), findsOneWidget);
     await t.pumpWidget(const SizedBox());
     await settle(t, 500);
@@ -175,8 +179,112 @@ void main() {
     await settle(t);
     await t.tap(find.byType(CircleAvatar).first);
     await settle(t);
+    await t.drag(find.text('About you'), const Offset(0, -1200));
+    await settle(t, 600);
     expect(find.text('Weight trend'), findsWidgets);
 
+    await t.pumpWidget(const SizedBox());
+    await settle(t, 500);
+    await t.runAsync(tearDownTestEnv);
+  });
+
+  testWidgets('Transformation mode opens on the plan and its checklist works', (t) async {
+    phone(t);
+    await t.runAsync(() async {
+      await setUpTestEnv(engineInIsolate: false);
+      await seed();
+      await DemoTransformation.seed(sl<TransformationRepository>());
+    });
+    await t.pumpWidget(const FitApp());
+    await settle(t, 2500);
+
+    // Opens on the plan, not the General dashboard.
+    expect(find.text('Summer Cut'), findsWidgets);
+    expect(find.textContaining('Day 18 of 84'), findsOneWidget);
+    expect(find.textContaining('fat lost'), findsWidgets);
+    expect(navIcon(Icons.flag_rounded), findsOneWidget);
+
+    // Tick a planned item.
+    final scroll = find.byType(CustomScrollView).first;
+    await t.scrollUntilVisible(
+      find.text('Afternoon'),
+      300,
+      scrollable: find.descendant(of: scroll, matching: find.byType(Scrollable)).first,
+    );
+    await settle(t, 600);
+    final lunch = find.bySemanticsLabel('Lunch done');
+    expect(lunch, findsOneWidget);
+    await t.tap(lunch);
+    await settle(t, 1200);
+    expect(sl<TransformationRepository>().checksFor(DateKeys.of(DateTime.now())), contains('m_lunch'));
+    await t.drag(scroll, const Offset(0, -3000));
+    await settle(t, 600);
+    await t.drag(scroll, const Offset(0, 5000));
+    await settle(t, 600);
+
+    // Plan editor walks through every step.
+    await t.tap(find.byTooltip('Edit plan'));
+    await settle(t);
+    for (var k = 0; k < 8; k++) {
+      expect(find.textContaining('Step ${k + 1} of 9'), findsOneWidget);
+      await t.tap(find.text('Next'));
+      await settle(t, 500);
+    }
+    expect(find.text('Save plan'), findsOneWidget);
+    await t.pageBack();
+    await settle(t);
+
+    // Progress shows the plan period.
+    await t.tap(navIcon(Icons.insights_rounded));
+    await settle(t, 2500);
+    expect(find.text('Plan'), findsWidgets);
+    expect(
+      find.text('Fat lost (from deficit)').evaluate().isNotEmpty ||
+          find.text('Mass gained (from surplus)').evaluate().isNotEmpty,
+      isTrue,
+    );
+
+    // Settings → General mode brings back the dashboard with a Resume card.
+    await t.tap(navIcon(Icons.flag_rounded));
+    await settle(t);
+    await t.tap(find.byTooltip('Full dashboard'));
+    await settle(t);
+    await t.drag(find.byType(CustomScrollView).last, const Offset(0, 3000));
+    await settle(t, 600);
+    await t.tap(find.byTooltip('Settings').last);
+    await settle(t);
+    await t.tap(find.text('General'));
+    await settle(t, 1500);
+    expect(sl<TransformationRepository>().mode, AppMode.general);
+    await t.pageBack();
+    await settle(t);
+    await t.pageBack();
+    await settle(t, 1500);
+    expect(find.text('Resume Summer Cut'), findsOneWidget);
+    expect(navIcon(Icons.dashboard_rounded), findsOneWidget);
+
+    await t.pumpWidget(const SizedBox());
+    await settle(t, 500);
+    await t.runAsync(tearDownTestEnv);
+  });
+
+  testWidgets('a plan starting tomorrow shows a countdown and a day-1 preview', (t) async {
+    phone(t);
+    await t.runAsync(() async {
+      await setUpTestEnv(engineInIsolate: false);
+      await seed();
+      final repo = sl<TransformationRepository>();
+      final plan = DemoTransformation.plan(DateKeys.startOfDay(DateTime.now()).add(const Duration(days: 1)));
+      await repo.savePlan(plan);
+      await repo.setMode(AppMode.transformation);
+    });
+    await t.pumpWidget(const FitApp());
+    await settle(t, 2500);
+    expect(find.textContaining('Starts '), findsOneWidget);
+    expect(find.text('to start'), findsOneWidget);
+    expect(find.textContaining('Day 1 ·'), findsOneWidget);
+    await t.drag(find.byType(CustomScrollView).first, const Offset(0, -3000));
+    await settle(t, 800);
     await t.pumpWidget(const SizedBox());
     await settle(t, 500);
     await t.runAsync(tearDownTestEnv);

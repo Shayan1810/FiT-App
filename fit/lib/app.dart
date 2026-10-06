@@ -29,6 +29,9 @@ import 'features/sleep/presentation/bloc/sleep_bloc.dart';
 import 'features/workout/domain/repositories/workout_repository.dart';
 import 'features/progress/domain/get_progress.dart';
 import 'features/progress/presentation/progress_cubit.dart';
+import 'features/transformation/domain/repositories/transformation_repository.dart';
+import 'features/transformation/domain/usecases/toggle_plan_item.dart';
+import 'features/transformation/presentation/transformation_cubit.dart';
 import 'features/workout/presentation/bloc/workout_bloc.dart';
 
 /// Root widget: provides every app-wide BLoC, the theme and the shared
@@ -53,6 +56,7 @@ class FitApp extends StatelessWidget {
               sl<ActivityRepository>().watch(),
               sl<WorkoutRepository>().watch(),
               sl<SleepRepository>().watch(),
+              sl<TransformationRepository>().watch(),
             ]),
           )..add(const InsightsStarted()),
         ),
@@ -81,8 +85,24 @@ class FitApp extends StatelessWidget {
               sl<ActivityRepository>().watch(),
               sl<WorkoutRepository>().watch(),
               sl<SleepRepository>().watch(),
+              sl<TransformationRepository>().watch(),
             ]),
+            planDays: () {
+              final repo = sl<TransformationRepository>();
+              final plan = repo.activePlan();
+              final now = DateTime.now();
+              if (repo.mode != AppMode.transformation || plan == null || plan.isFinished(now)) return null;
+              final n = plan.dayNumber(now);
+              return n < 1 ? null : n;
+            },
           )..load(),
+        ),
+        BlocProvider(
+          create: (_) => TransformationCubit(
+            repo: sl<TransformationRepository>(),
+            toggle: sl<TogglePlanItem>(),
+            profile: sl<ProfileRepository>(),
+          )..start(),
         ),
         BlocProvider(create: (_) => ThemeCubit(sl<SettingsStore>())),
         BlocProvider(create: (_) => SettingsCubit(sl<SettingsStore>(), sl<SyncCoordinator>())..refresh()),

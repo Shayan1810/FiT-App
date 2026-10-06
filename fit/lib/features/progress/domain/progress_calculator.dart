@@ -7,14 +7,17 @@ import '../../insights/domain/calculators/sleep_calculator.dart';
 import '../../insights/domain/calculators/training_load_calculator.dart';
 import '../../insights/domain/calculators/weight_trend_calculator.dart';
 import '../../insights/domain/entities/health_snapshot.dart';
+import '../../transformation/domain/calculators/transformation_calculator.dart';
+import '../../transformation/domain/entities/transformation_plan.dart';
 import '../../workout/domain/entities/exercise.dart';
 
 /// Groups shown as filter chips on the Progress screen.
-enum ProgressCategory { nutrition, body, activity, sleep, training, recovery }
+enum ProgressCategory { plan, nutrition, body, activity, sleep, training, recovery }
 
 extension ProgressCategoryX on ProgressCategory {
   /// Display label.
   String get label => switch (this) {
+    ProgressCategory.plan => 'Plan',
     ProgressCategory.nutrition => 'Nutrition',
     ProgressCategory.body => 'Body',
     ProgressCategory.activity => 'Activity',
@@ -617,9 +620,108 @@ class ProgressCalculator {
       ),
     ];
 
+    // ── Transformation plan ──────────────────────────────────────────
+    final planSeries = <MetricSeries>[];
+    final tin = s.transformation;
+    if (tin != null && tin.days.isNotEmpty) {
+      final st = TransformationCalculator.compute(input: tin, profile: p, weights: s.weights, now: s.now);
+      final byKey = {for (final d in st.days) d.dayKey: d};
+      final adherence = empty(),
+          cumFat = empty(),
+          estW = empty(),
+          planW = empty(),
+          skin = empty(),
+          bal = empty();
+      var net = 0.0;
+      final startW = tin.plan.startWeightKg ?? p.weightKg;
+      for (var i = 0; i < n; i++) {
+        final d = byKey[s.days[i].dayKey];
+        if (d == null) continue;
+        if (!d.isToday) adherence[i] = d.adherence * 100;
+        final b = d.balance;
+        if (b != null) {
+          net += b;
+          bal[i] = b;
+        }
+        if (d.skincare.isNotEmpty) {
+          skin[i] = d.skincare.where((x) => d.doneIds.contains(x.id)).length / d.skincare.length * 100;
+        }
+        if (tin.plan.hasBody) {
+          cumFat[i] = net < 0
+              ? -net / TransformationStatus.kcalPerKgFat
+              : -net / TransformationStatus.kcalPerKgGain;
+          estW[i] =
+              startW +
+              (net < 0 ? net / TransformationStatus.kcalPerKgFat : net / TransformationStatus.kcalPerKgGain);
+          planW[i] = tin.plan.plannedWeightOn(d.date);
+        }
+      }
+      const pl = ProgressCategory.plan;
+      final gaining = tin.plan.bodyGoal == BodyGoal.weightGain;
+      planSeries.addAll([
+        if (tin.plan.hasBody) ...[
+          MetricSeries(
+            id: 'plan_fat',
+            category: pl,
+            title: gaining ? 'Mass gained (from surplus)' : 'Fat lost (from deficit)',
+            unit: 'kg',
+            values: gaining ? [for (final v in cumFat) v == null ? null : -v] : cumFat,
+            about:
+                'Cumulative energy balance ÷ 7 700 kcal per kg of fat (or 5 500 kcal per kg gained). '
+                'Unlike the scale, it ignores water and glycogen swings.',
+            decimals: 2,
+            higherIsBetter: true,
+          ),
+          MetricSeries(
+            id: 'plan_weight',
+            category: pl,
+            title: 'Estimated vs planned weight',
+            unit: 'kg',
+            values: planW,
+            secondary: estW,
+            about:
+                'Line: weight estimated from energy balance. Dots: the straight-line plan from start to goal.',
+            decimals: 1,
+          ),
+          MetricSeries(
+            id: 'plan_balance',
+            category: pl,
+            title: 'Daily energy balance',
+            unit: 'kcal',
+            values: bal,
+            about: 'Intake − expenditure on each completed, logged day of the plan.',
+            bars: true,
+          ),
+        ],
+        MetricSeries(
+          id: 'plan_adherence',
+          category: pl,
+          title: 'Plan completed',
+          unit: '%',
+          values: adherence,
+          about: 'Share of the day\'s checklist ticked. 80 % or more keeps your streak going.',
+          bars: true,
+          target: 80,
+          higherIsBetter: true,
+        ),
+        if (tin.plan.hasSkin)
+          MetricSeries(
+            id: 'plan_skin',
+            category: pl,
+            title: 'Skincare done',
+            unit: '%',
+            values: skin,
+            about: 'Share of the day\'s skincare routines completed.',
+            bars: true,
+            target: 100,
+            higherIsBetter: true,
+          ),
+      ]);
+    }
+
     return ProgressReport(
       dates: dates,
-      series: [...series, ...weeklySeries],
+      series: [...planSeries, ...series, ...weeklySeries],
       exercises: exercises,
       weekStarts: weeks,
       weeklySets: weeklySets,

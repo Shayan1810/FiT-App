@@ -58,16 +58,21 @@ class EnergyCalculator {
   static double bmrKatchMcArdle({required double leanMassKg}) => 370 + 21.6 * leanMassKg;
 
   /// Picks Katch–McArdle when body-fat % is known (more accurate for
-  /// lean/muscular people), otherwise Mifflin–St Jeor.
+  /// lean/muscular people), otherwise Mifflin–St Jeor. The profile's
+  /// metabolism adjustment (±30 % max) is applied on top.
   static ({double bmr, String method}) bmr(UserProfile p, {double? weightKg}) {
     final w = weightKg ?? p.weightKg;
+    final adj = 1 + p.bmrAdjustPct.clamp(-30, 30) / 100;
+    final note = p.bmrAdjustPct == 0
+        ? ''
+        : ' ${p.bmrAdjustPct > 0 ? '+' : ''}${p.bmrAdjustPct.toStringAsFixed(0)} %';
     if (p.bodyFatPct != null && p.bodyFatPct! > 3 && p.bodyFatPct! < 60) {
       final lbm = w * (1 - p.bodyFatPct! / 100);
-      return (bmr: bmrKatchMcArdle(leanMassKg: lbm), method: 'Katch–McArdle');
+      return (bmr: bmrKatchMcArdle(leanMassKg: lbm) * adj, method: 'Katch–McArdle$note');
     }
     return (
-      bmr: bmrMifflin(sex: p.sex, weightKg: w, heightCm: p.heightCm, age: p.age),
-      method: 'Mifflin–St Jeor',
+      bmr: bmrMifflin(sex: p.sex, weightKg: w, heightCm: p.heightCm, age: p.age) * adj,
+      method: 'Mifflin–St Jeor$note',
     );
   }
 
@@ -139,7 +144,9 @@ class EnergyCalculator {
   ///   and only *manual* workouts are added on top;
   /// * otherwise → NEAT = walking energy from steps, and all workouts are
   ///   added except Health-Connect walks/runs (their steps are already
-  ///   in the step count).
+  ///   in the step count);
+  /// * a logged *walk* is never added on top of a day that has a step count
+  ///   or device active energy — those already contain the walk.
   static EnergyBreakdown daily({
     required UserProfile profile,
     required int steps,
@@ -156,7 +163,7 @@ class EnergyCalculator {
     double exercise = 0;
     if (deviceActiveKcal != null && deviceActiveKcal > 0) {
       neat = deviceActiveKcal;
-      for (final s in workouts.where((s) => s.source == DataSource.manual)) {
+      for (final s in workouts.where((s) => s.source == DataSource.manual && s.type != WorkoutType.walk)) {
         exercise += workoutKcal(s, weightKg: w);
       }
     } else {
@@ -164,7 +171,9 @@ class EnergyCalculator {
       neat = walkingKcal(km: km, weightKg: w);
       for (final s in workouts) {
         final stepBased =
-            s.source == DataSource.healthConnect && (s.type == WorkoutType.walk || s.type == WorkoutType.run);
+            (s.source == DataSource.healthConnect &&
+                (s.type == WorkoutType.walk || s.type == WorkoutType.run)) ||
+            (s.type == WorkoutType.walk && steps > 0);
         if (!stepBased) exercise += workoutKcal(s, weightKg: w);
       }
     }

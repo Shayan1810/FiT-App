@@ -12,6 +12,7 @@ IconData insightIcon(InsightCategory c) => switch (c) {
   InsightCategory.activity => Icons.directions_walk_rounded,
   InsightCategory.body => Icons.monitor_weight_rounded,
   InsightCategory.hydration => Icons.water_drop_rounded,
+  InsightCategory.plan => Icons.flag_rounded,
 };
 
 /// Colour for an insight tone.

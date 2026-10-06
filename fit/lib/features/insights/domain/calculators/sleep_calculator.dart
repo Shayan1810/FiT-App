@@ -87,8 +87,11 @@ class SleepCalculator {
   }
 
   /// Summarises [sessions] for the 7 wake-days ending [today].
-  static SleepSummary summarize(List<SleepSession> sessions, DateTime today, int age) {
-    final need = needMinutes(age);
+  ///
+  /// [needOverride] replaces the age-based need (e.g. a transformation
+  /// plan's own sleep goal).
+  static SleepSummary summarize(List<SleepSession> sessions, DateTime today, int age, {int? needOverride}) {
+    final need = needOverride ?? needMinutes(age);
     final days = DateKeys.lastNDays(today, 7);
     final keys = days.map(DateKeys.of).toList();
     final byDay = <String, List<SleepSession>>{};

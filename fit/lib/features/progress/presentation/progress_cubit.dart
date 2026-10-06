@@ -7,10 +7,12 @@ import '../domain/get_progress.dart';
 import '../domain/progress_calculator.dart';
 
 /// Time ranges offered on the Progress screen.
-enum ProgressRange { month, quarter, half, year }
+enum ProgressRange { plan, month, quarter, half, year }
 
 extension ProgressRangeX on ProgressRange {
+  /// Days covered; [ProgressRange.plan] is resolved by the cubit.
   int get days => switch (this) {
+    ProgressRange.plan => 30,
     ProgressRange.month => 30,
     ProgressRange.quarter => 90,
     ProgressRange.half => 180,
@@ -18,6 +20,7 @@ extension ProgressRangeX on ProgressRange {
   };
 
   String get label => switch (this) {
+    ProgressRange.plan => 'Plan',
     ProgressRange.month => '30 D',
     ProgressRange.quarter => '90 D',
     ProgressRange.half => '6 M',
@@ -64,8 +67,13 @@ class ProgressState extends Equatable {
 /// Computes [ProgressReport]s in a background isolate and recomputes
 /// (debounced) whenever any repository changes.
 class ProgressCubit extends Cubit<ProgressState> {
-  ProgressCubit(this._get, Stream<void> changes, {this.debounce = const Duration(milliseconds: 800)})
-    : super(const ProgressState()) {
+  ProgressCubit(
+    this._get,
+    Stream<void> changes, {
+    this.debounce = const Duration(milliseconds: 800),
+    int? Function()? planDays,
+  }) : _planDays = planDays ?? (() => null),
+       super(const ProgressState()) {
     _sub = changes.listen((_) {
       _timer?.cancel();
       _timer = Timer(debounce, load);
@@ -73,16 +81,33 @@ class ProgressCubit extends Cubit<ProgressState> {
   }
 
   final GetProgress _get;
+
+  /// Days since the active transformation started (null = none active).
+  final int? Function() _planDays;
+
+  /// Whether the "Plan" range is available.
+  bool get hasPlan => _planDays() != null;
   final Duration debounce;
   StreamSubscription<void>? _sub;
   Timer? _timer;
   int _request = 0;
+  bool _planSeen = false;
 
   /// (Re)computes the report for the current range.
   Future<void> load() async {
     final id = ++_request;
+    final planDays = _planDays();
+    // Follow the transformation: default to its period, fall back when it ends.
+    if (planDays != null && !_planSeen) {
+      _planSeen = true;
+      emit(state.copyWith(range: ProgressRange.plan, category: ProgressCategory.plan));
+    } else if (planDays == null && state.range == ProgressRange.plan) {
+      _planSeen = false;
+      emit(state.copyWith(range: ProgressRange.month, category: ProgressCategory.nutrition));
+    }
     emit(state.copyWith(loading: true));
-    final report = await _get(state.range.days);
+    final days = state.range == ProgressRange.plan ? (planDays ?? 30).clamp(2, 3650) : state.range.days;
+    final report = await _get(days);
     if (isClosed || id != _request) return;
     emit(state.copyWith(report: report, loading: false, version: state.version + 1));
   }

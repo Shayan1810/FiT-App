@@ -3,6 +3,7 @@ import '../../../nutrition/domain/entities/nutrition_facts.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/entities/weight_entry.dart';
 import '../../../sleep/domain/entities/sleep_session.dart';
+import '../../../transformation/domain/calculators/transformation_calculator.dart';
 import '../../../workout/domain/entities/workout_session.dart';
 
 /// Everything known about one calendar day.
@@ -43,6 +44,7 @@ class HealthSnapshot {
     required this.workouts,
     required this.sleep,
     required this.weights,
+    this.transformation,
   });
 
   final DateTime now;
@@ -59,6 +61,9 @@ class HealthSnapshot {
 
   /// Weigh-ins from the last 120 days.
   final List<WeightEntry> weights;
+
+  /// The active transformation (Transformation mode), if any.
+  final TransformationInput? transformation;
 
   /// The snapshot of the current (incomplete) day.
   DaySnapshot get today => days.last;

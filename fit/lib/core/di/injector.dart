@@ -30,6 +30,11 @@ import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/sleep/data/sleep_repository_impl.dart';
 import '../../features/sleep/domain/entities/sleep_session.dart';
 import '../../features/sleep/domain/repositories/sleep_repository.dart';
+import '../../features/transformation/data/plan_codec.dart';
+import '../../features/transformation/data/transformation_repository_impl.dart';
+import '../../features/transformation/domain/entities/transformation_plan.dart';
+import '../../features/transformation/domain/repositories/transformation_repository.dart';
+import '../../features/transformation/domain/usecases/toggle_plan_item.dart';
 import '../../features/workout/data/workout_repository_impl.dart';
 import '../../features/workout/domain/entities/exercise.dart';
 import '../../features/workout/domain/entities/workout_session.dart';
@@ -195,8 +200,29 @@ Future<void> configureDependencies({
     ),
   );
 
+  // ── Transformation ──────────────────────────────────────────────────
+  final transformation = TransformationRepositoryImpl(
+    HiveStore<TransformationPlan>(
+      HiveBoxes.box(HiveBoxes.transformation),
+      toMap: PlanCodec.toMap,
+      fromMap: PlanCodec.fromMap,
+    ),
+    HiveBoxes.box(HiveBoxes.planChecks),
+    settings,
+  );
+  sl.registerSingleton<TransformationRepository>(transformation);
+  sl.registerSingleton<TogglePlanItem>(
+    TogglePlanItem(
+      plans: transformation,
+      nutrition: nutrition,
+      workouts: sl<WorkoutRepository>(),
+      sleep: sl<SleepRepository>(),
+    ),
+  );
+
   // ── Insights ───────────────────────────────────────────────────────
   final snapshot = BuildHealthSnapshot(
+    transformation: transformation,
     profile: sl<ProfileRepository>(),
     nutrition: nutrition,
     activity: sl<ActivityRepository>(),

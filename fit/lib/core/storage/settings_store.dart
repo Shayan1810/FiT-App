@@ -15,6 +15,8 @@ class SettingsStore {
   static const String kThemeMode = 'theme_mode';
   static const String kHealthConnected = 'health_connected';
   static const String kLastHealthSync = 'last_health_sync';
+  static const String kAppMode = 'app_mode';
+  static const String kActivePlan = 'active_plan';
   static const String kStatsPrefix = 'stat_';
 
   /// API key passed at build time with `--dart-define=GEMINI_API_KEY=...`.

@@ -46,8 +46,12 @@ class ProgressPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(child: _RangeSelector(st.range)),
-                SliverToBoxAdapter(child: _CategoryChips(st.category)),
+                SliverToBoxAdapter(
+                  child: _RangeSelector(st.range, plan: context.read<ProgressCubit>().hasPlan),
+                ),
+                SliverToBoxAdapter(
+                  child: _CategoryChips(st.category, plan: r?.of(ProgressCategory.plan).isNotEmpty ?? false),
+                ),
                 if (r == null)
                   const SliverToBoxAdapter(
                     child: Padding(
@@ -102,10 +106,16 @@ class ProgressPage extends StatelessWidget {
   }
 }
 
-/// 30 D / 90 D / 6 M / 1 Y segmented selector.
+/// Plan / 30 D / 90 D / 6 M / 1 Y segmented selector.
 class _RangeSelector extends StatelessWidget {
-  const _RangeSelector(this.range);
+  const _RangeSelector(this.range, {required this.plan});
   final ProgressRange range;
+  final bool plan;
+
+  List<ProgressRange> get _ranges => [
+    for (final r in ProgressRange.values)
+      if (r != ProgressRange.plan || plan) r,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -117,13 +127,15 @@ class _RangeSelector extends StatelessWidget {
         decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(21)),
         child: LayoutBuilder(
           builder: (context, box) {
-            final w = box.maxWidth / ProgressRange.values.length;
+            final ranges = _ranges;
+            final w = box.maxWidth / ranges.length;
+            final at = ranges.indexOf(range).clamp(0, ranges.length - 1);
             return Stack(
               children: [
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 320),
                   curve: Curves.easeOutBack,
-                  left: w * range.index,
+                  left: w * at,
                   top: 0,
                   bottom: 0,
                   width: w,
@@ -143,7 +155,7 @@ class _RangeSelector extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    for (final r in ProgressRange.values)
+                    for (final r in ranges)
                       Expanded(
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -175,10 +187,12 @@ class _RangeSelector extends StatelessWidget {
 }
 
 class _CategoryChips extends StatelessWidget {
-  const _CategoryChips(this.category);
+  const _CategoryChips(this.category, {required this.plan});
   final ProgressCategory category;
+  final bool plan;
 
   static IconData _icon(ProgressCategory c) => switch (c) {
+    ProgressCategory.plan => Icons.flag_rounded,
     ProgressCategory.nutrition => Icons.restaurant_rounded,
     ProgressCategory.body => Icons.monitor_weight_rounded,
     ProgressCategory.activity => Icons.directions_walk_rounded,
@@ -196,22 +210,23 @@ class _CategoryChips extends StatelessWidget {
         runSpacing: 8,
         children: [
           for (final c in ProgressCategory.values)
-            ChoiceChip(
-              avatar: Icon(
-                _icon(c),
-                size: 16,
-                color: c == category ? AppColors.onPrimary : AppColors.primary,
+            if (c != ProgressCategory.plan || plan)
+              ChoiceChip(
+                avatar: Icon(
+                  _icon(c),
+                  size: 16,
+                  color: c == category ? AppColors.onPrimary : AppColors.primary,
+                ),
+                label: Text(c.label),
+                selected: c == category,
+                showCheckmark: false,
+                selectedColor: AppColors.primary,
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: c == category ? AppColors.onPrimary : AppColors.textPrimary,
+                ),
+                onSelected: (_) => context.read<ProgressCubit>().setCategory(c),
               ),
-              label: Text(c.label),
-              selected: c == category,
-              showCheckmark: false,
-              selectedColor: AppColors.primary,
-              labelStyle: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: c == category ? AppColors.onPrimary : AppColors.textPrimary,
-              ),
-              onSelected: (_) => context.read<ProgressCubit>().setCategory(c),
-            ),
         ],
       ),
     );

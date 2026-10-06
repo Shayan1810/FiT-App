@@ -132,10 +132,10 @@ class DemoData {
     final today = DateKeys.startOfDay(now ?? DateTime.now());
     await profile.saveProfile(
       UserProfile(
-        name: 'Shayan Zafar',
+        name: 'Alex Morgan',
         sex: Sex.male,
-        dateOfBirth: DateTime(2003, 10, 18),
-        heightCm: 175,
+        dateOfBirth: DateTime(1996, 4, 12),
+        heightCm: 178,
         weightKg: 72,
         goal: GoalType.lose,
         weeklyRateKg: 0.4,

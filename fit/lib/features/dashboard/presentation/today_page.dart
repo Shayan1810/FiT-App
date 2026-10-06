@@ -28,6 +28,58 @@ import '../../profile/presentation/log_weight_sheet.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../shell/main_shell.dart';
+import '../../transformation/domain/repositories/transformation_repository.dart';
+import '../../transformation/presentation/transformation_cubit.dart';
+import '../../transformation/presentation/transformation_page.dart';
+
+/// Invites the user to start (or resume) a transformation; hidden while
+/// Transformation mode is running.
+class _TransformationCta extends StatelessWidget {
+  const _TransformationCta();
+
+  @override
+  Widget build(BuildContext context) {
+    final st = context.watch<TransformationCubit>().state;
+    final now = DateTime.now();
+    if (st.isActive(now)) return const SizedBox.shrink();
+    final resumable = st.plan != null && !st.plan!.isFinished(now);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: DepthCard(
+        style: DepthStyle.dark,
+        onTap: () => resumable
+            ? context.read<TransformationCubit>().setMode(AppMode.transformation)
+            : openPlanEditor(context),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            IconBadge(icon: Icons.flag_rounded, color: AppColors.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    resumable ? 'Resume ${st.plan!.name}' : 'Start a transformation',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    resumable
+                        ? 'Switch to Transformation mode and see today\'s checklist.'
+                        : 'Plan your diet, training, cardio, sleep and skincare once. Then just tick each day.',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Today — the dashboard. Everything at a glance, every card tappable.
 class TodayPage extends StatelessWidget {
@@ -51,6 +103,7 @@ class TodayPage extends StatelessWidget {
                 SliverList.list(
                   children: [
                     Entrance(index: 0, child: _CoachHero(b)),
+                    const _TransformationCta(),
                     Entrance(index: 1, child: _MetricGrid(b)),
                     Entrance(index: 2, child: _FlipSwitcher(b)),
                     Entrance(index: 3, child: _ActivityRow(b)),
@@ -78,7 +131,7 @@ class TodayPage extends StatelessWidget {
   }
 }
 
-/// "Hi, Shayan" + pulsing status dot + avatar (original header, refined).
+/// "Hi, Alex" + pulsing status dot + avatar (original header, refined).
 class _Header extends StatelessWidget {
   const _Header();
 

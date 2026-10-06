@@ -15,6 +15,7 @@ class UserProfileMapper {
     'goal': p.goal.name,
     'weeklyRateKg': p.weeklyRateKg,
     'photoPath': p.photoPath,
+    'bmrAdjustPct': p.bmrAdjustPct,
   };
 
   static UserProfile fromMap(Map<String, dynamic> m) => UserProfile(
@@ -29,6 +30,7 @@ class UserProfileMapper {
     goal: GoalType.values.firstWhere((g) => g.name == m['goal'], orElse: () => GoalType.maintain),
     weeklyRateKg: (m['weeklyRateKg'] as num?)?.toDouble() ?? 0,
     photoPath: m['photoPath'] as String?,
+    bmrAdjustPct: (m['bmrAdjustPct'] as num?)?.toDouble() ?? 0,
   );
 }
 

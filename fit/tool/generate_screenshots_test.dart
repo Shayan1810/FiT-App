@@ -6,7 +6,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:fit/app.dart';
+import 'package:fit/core/dev/demo_transformation.dart';
 import 'package:fit/core/di/injector.dart';
+import 'package:fit/features/transformation/domain/repositories/transformation_repository.dart';
 import 'package:fit/core/storage/settings_store.dart';
 import 'package:fit/core/widgets/nav_bar_3d.dart';
 import 'package:flutter/material.dart';
@@ -72,7 +74,56 @@ void main() {
       _dir = dark ? '$_out/dark' : _out;
       await _tour(t, phone, dark);
     });
+    testWidgets('transformation (${dark ? 'dark' : 'light'})', (t) async {
+      _dir = dark ? '$_out/dark' : _out;
+      await _transformation(t, phone, dark);
+    });
   }
+}
+
+Future<void> _transformation(WidgetTester t, void Function(WidgetTester) phone, bool dark) async {
+  phone(t);
+  await t.runAsync(() async {
+    await setUpTestEnv(engineInIsolate: false);
+    await seed();
+    await DemoTransformation.seed(sl<TransformationRepository>());
+    if (dark) await sl<SettingsStore>().write(SettingsStore.kThemeMode, 'dark');
+  });
+  await t.pumpWidget(RepaintBoundary(key: _key, child: const FitApp()));
+  await _settle(t, 3000);
+  await _shot(t, '21_plan');
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, -900));
+  await _settle(t);
+  await _shot(t, '22_plan_checklist');
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, -800));
+  await _settle(t);
+  await _shot(t, '23_plan_evening');
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, 3000));
+  await _settle(t, 600);
+  await t.tap(find.byTooltip('Edit plan'));
+  await _settle(t);
+  await t.tap(find.text('Next'));
+  await _settle(t, 600);
+  await _shot(t, '24_plan_editor_body');
+  await t.tap(find.text('Next'));
+  await _settle(t, 600);
+  await t.tap(find.text('Next'));
+  await _settle(t, 600);
+  await _shot(t, '25_plan_editor_diet');
+  await t.pageBack();
+  await _settle(t, 600);
+  await t.tap(_nav(Icons.insights_rounded));
+  await _settle(t, 3000);
+  await _shot(t, '26_progress_plan');
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, -700));
+  await _settle(t);
+  await _shot(t, '27_progress_plan_more');
+  await t.tap(_nav(Icons.auto_awesome_rounded));
+  await _settle(t, 3000);
+  await _shot(t, '28_coach_plan');
+  await t.pumpWidget(const SizedBox());
+  await _settle(t, 300);
+  await t.runAsync(tearDownTestEnv);
 }
 
 Future<void> _tour(WidgetTester t, void Function(WidgetTester) phone, bool dark) async {

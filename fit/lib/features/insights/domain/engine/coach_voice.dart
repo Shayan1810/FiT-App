@@ -4,6 +4,7 @@ import '../../../../core/utils/date_utils.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../calculators/recovery_calculator.dart';
 import '../calculators/sleep_calculator.dart';
+import '../../../transformation/domain/calculators/transformation_calculator.dart';
 import '../calculators/training_load_calculator.dart';
 import '../entities/daily_briefing.dart';
 
@@ -30,10 +31,12 @@ class CoachVoice {
     required TrainingLoadSummary load,
     required NextDayPlan plan,
     required List<Insight> insights,
+    TransformationStatus? transformation,
   }) {
     final greeting = '${_timeGreeting(now)}, ${profile.firstName}.';
     final headline = _headline(recovery.readiness);
     final paragraphs = <String>[
+      if (transformation != null) _planParagraph(transformation),
       _recoveryParagraph(recovery, sleep, load),
       _todayParagraph(today, now),
       _tomorrowParagraph(plan),
@@ -133,6 +136,44 @@ class CoachVoice {
         '(P ${t.protein.round()} g · C ${t.carbs.round()} g · F ${t.fat.round()} g), '
         '$train, ${_n.format(p.steps)} steps and ${(t.waterMl / 1000).toStringAsFixed(1)} L of water. '
         'Lights out by ${DateKeys.clock(p.bedtime)} to wake refreshed at ${DateKeys.clock(p.wake)}.';
+  }
+
+  /// Where the transformation stands, in one paragraph.
+  static String _planParagraph(TransformationStatus t) {
+    final p = t.plan;
+    if (!t.started) {
+      final d = 1 - t.dayNumber;
+      return '${p.name} starts ${d == 1 ? 'tomorrow' : 'in $d days'} and runs for ${p.totalDays} days. '
+          'Everything is planned; from day 1 just tick what you do.';
+    }
+    final b = StringBuffer('Day ${t.dayNumber} of ${p.totalDays} of ${p.name}. ');
+    final y = t.yesterday;
+    if (y != null && y.planned > 0) {
+      b.write('Yesterday you completed ${y.done} of ${y.planned} planned items. ');
+    }
+    if (p.hasBody && t.countedDays > 0) {
+      final net = t.netKcal.round();
+      if (net < 0) {
+        b.write(
+          'Over ${t.countedDays} logged days your energy balance is ${_n.format(net)} kcal, '
+          'about ${t.fatLostKg.toStringAsFixed(1)} kg of fat',
+        );
+      } else {
+        b.write(
+          'Over ${t.countedDays} logged days you are ${_n.format(net)} kcal in surplus, '
+          'about ${t.massGainedKg.toStringAsFixed(1)} kg of new tissue',
+        );
+      }
+      if (t.estimatedWeightKg != null) {
+        b.write('; estimated weight ${t.estimatedWeightKg!.toStringAsFixed(1)} kg');
+        if (t.plannedWeightKg != null) b.write(' (plan ${t.plannedWeightKg!.toStringAsFixed(1)} kg)');
+      }
+      b.write('. ');
+    } else if (p.hasBody) {
+      b.write('Log or tick your meals and I will start counting fat lost from your energy balance. ');
+    }
+    if (p.hasSkin && t.skinStreak > 0) b.write('Skincare streak: ${t.skinStreak} days.');
+    return b.toString().trim();
   }
 
   static String _focusParagraph(Insight i) {

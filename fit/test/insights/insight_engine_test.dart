@@ -36,7 +36,7 @@ void main() {
     await seed();
     final b = (await GenerateBriefing(sl<BuildHealthSnapshot>(), useIsolate: false)())!;
 
-    expect(b.greeting, contains('Shayan'));
+    expect(b.greeting, contains('Alex'));
     expect(b.narrative.length, greaterThanOrEqualTo(3));
     expect(b.recovery.score, inInclusiveRange(0, 100));
     expect(b.week, hasLength(7));

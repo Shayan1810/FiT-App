@@ -160,6 +160,9 @@ class _ProfileFormState extends State<_ProfileForm> {
   late final _name = TextEditingController(text: widget.profile.name);
   late final _height = TextEditingController(text: widget.profile.heightCm.toStringAsFixed(0));
   late final _bf = TextEditingController(text: widget.profile.bodyFatPct?.toStringAsFixed(1) ?? '');
+  late final _adj = TextEditingController(
+    text: widget.profile.bmrAdjustPct == 0 ? '' : widget.profile.bmrAdjustPct.toStringAsFixed(0),
+  );
   late Sex _sex = widget.profile.sex;
   late DateTime _dob = widget.profile.dateOfBirth;
   late GoalType _goal = widget.profile.goal;
@@ -170,6 +173,7 @@ class _ProfileFormState extends State<_ProfileForm> {
     _name.dispose();
     _height.dispose();
     _bf.dispose();
+    _adj.dispose();
     super.dispose();
   }
 
@@ -184,6 +188,11 @@ class _ProfileFormState extends State<_ProfileForm> {
       showToast(context, 'Body fat should be between 3 and 60 %.');
       return;
     }
+    final adj = double.tryParse(_adj.text.replaceAll(',', '.')) ?? 0;
+    if (adj < -30 || adj > 30) {
+      showToast(context, 'Metabolism adjustment should be between −30 and +30 %.');
+      return;
+    }
     context.read<ProfileBloc>().add(
       ProfileSaved(
         widget.profile.copyWith(
@@ -195,6 +204,7 @@ class _ProfileFormState extends State<_ProfileForm> {
           weeklyRateKg: _goal == GoalType.maintain ? 0 : _rate,
           bodyFatPct: bf,
           clearBodyFat: bf == null,
+          bmrAdjustPct: adj,
         ),
       ),
     );
@@ -278,6 +288,17 @@ class _ProfileFormState extends State<_ProfileForm> {
                   icon: const Icon(Icons.straighten_rounded),
                   onPressed: _estimateBodyFat,
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _adj,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              decoration: const InputDecoration(
+                labelText: 'Metabolism adjustment (optional)',
+                suffixText: '%',
+                helperText: 'e.g. −10 if a medication or condition lowers your resting metabolism',
+                helperMaxLines: 2,
               ),
             ),
             const SizedBox(height: 20),

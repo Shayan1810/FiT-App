@@ -22,6 +22,8 @@ class HiveBoxes {
   static const String syncQueue = 'fit_sync_queue';
   static const String settings = 'fit_settings';
   static const String customExercises = 'fit_custom_exercises';
+  static const String transformation = 'fit_transformation';
+  static const String planChecks = 'fit_plan_checks';
 
   /// Every box the app uses.
   static const List<String> all = [
@@ -38,6 +40,8 @@ class HiveBoxes {
     syncQueue,
     settings,
     customExercises,
+    transformation,
+    planChecks,
   ];
 
   /// Initialises Hive in the app documents directory and opens all boxes.

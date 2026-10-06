@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -19,6 +20,9 @@ import '../../profile/domain/repositories/profile_repository.dart';
 import '../../profile/presentation/bloc/profile_bloc.dart';
 import '../../sleep/domain/repositories/sleep_repository.dart';
 import '../../workout/domain/repositories/workout_repository.dart';
+import '../../transformation/domain/repositories/transformation_repository.dart';
+import '../../transformation/presentation/transformation_cubit.dart';
+import '../../transformation/presentation/transformation_page.dart';
 import 'settings_cubit.dart';
 import 'theme_cubit.dart';
 import '../../../core/platform/health_brand.dart';
@@ -45,6 +49,8 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
         children: const [
+          Entrance(child: _ModeSection()),
+          SizedBox(height: 16),
           Entrance(child: _AppearanceSection()),
           SizedBox(height: 16),
           Entrance(index: 1, child: _HealthSection()),
@@ -360,6 +366,160 @@ class _DataSection extends StatelessWidget {
   }
 }
 
+/// General / Transformation mode and the plan's management.
+class _ModeSection extends StatelessWidget {
+  const _ModeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final st = context.watch<TransformationCubit>().state;
+    final cubit = context.read<TransformationCubit>();
+    final plan = st.plan;
+    final now = DateTime.now();
+    final usable = plan != null && !plan.isFinished(now);
+    return DepthCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_rounded, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Text('Mode', style: AppText.subtitle),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Transformation mode follows a time-boxed plan (diet, training, cardio, sleep, skincare) and opens on '
+            'your daily checklist until you switch back or the plan ends.',
+            style: AppText.caption,
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<AppMode>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: AppMode.general,
+                  icon: Icon(Icons.dashboard_rounded),
+                  label: Text('General'),
+                ),
+                ButtonSegment(
+                  value: AppMode.transformation,
+                  icon: Icon(Icons.flag_rounded),
+                  label: Text('Transformation'),
+                ),
+              ],
+              selected: {st.mode},
+              onSelectionChanged: (v) async {
+                if (v.first == AppMode.transformation && !usable) {
+                  await openPlanEditor(context);
+                  return;
+                }
+                await cubit.setMode(v.first);
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (plan != null) ...[
+            Text(
+              '${plan.name} · ${DateFormat('d MMM').format(plan.start)} – ${DateFormat('d MMM yyyy').format(plan.end)}'
+              '${plan.isFinished(now) ? ' · finished' : ''}',
+              style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(
+                avatar: Icon(plan == null || !usable ? Icons.add_rounded : Icons.tune_rounded, size: 18),
+                label: Text(plan == null || !usable ? 'New transformation' : 'Edit plan'),
+                onPressed: () => openPlanEditor(context, usable ? plan : null),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.download_rounded, size: 18),
+                label: const Text('Import plan'),
+                onPressed: () => _import(context),
+              ),
+              if (plan != null)
+                ActionChip(
+                  avatar: const Icon(Icons.copy_rounded, size: 18),
+                  label: const Text('Copy plan'),
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: cubit.export()));
+                    if (context.mounted) {
+                      showToast(context, 'Plan copied as text. Paste it anywhere to back it up.');
+                    }
+                  },
+                ),
+              if (plan != null)
+                ActionChip(
+                  avatar: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+                  label: const Text('Delete plan'),
+                  onPressed: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('Delete ${plan.name}?'),
+                        content: const Text(
+                          'The plan and its daily ticks are removed. Food, workouts, sleep and weigh-ins '
+                          'you logged stay in your history.',
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) await cubit.deletePlan();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _import(BuildContext context) async {
+    final clip = (await Clipboard.getData('text/plain'))?.text ?? '';
+    if (!context.mounted) return;
+    final c = TextEditingController(text: clip.contains('fit-plan') ? clip : '');
+    final json = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Import plan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Paste a FiT plan (text copied with "Copy plan" or a .json plan file).'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(hintText: '{ "format": "fit-plan", … }'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Import')),
+        ],
+      ),
+    );
+    if (json == null || json.trim().isEmpty || !context.mounted) return;
+    final error = await context.read<TransformationCubit>().import(json);
+    if (error != null && context.mounted) showToast(context, error);
+  }
+}
+
 /// System / Light / Dark switch.
 class _AppearanceSection extends StatelessWidget {
   const _AppearanceSection();
@@ -439,7 +599,7 @@ class _AboutSection extends StatelessWidget {
                       'FiT',
                       style: TextStyle(color: on, fontSize: 22, fontWeight: FontWeight.w700),
                     ),
-                    Text('Version 1.0.0 · MDG Nebula Project', style: TextStyle(color: soft)),
+                    Text('Version 2.0.0 · MDG Nebula Project', style: TextStyle(color: soft)),
                   ],
                 ),
               ),
@@ -450,8 +610,7 @@ class _AboutSection extends StatelessWidget {
             'Developed by Shayan Zafar',
             style: TextStyle(color: on, fontWeight: FontWeight.w600),
           ),
-          Text('IIT Roorkee', style: TextStyle(color: soft)),
-          Text('shayanzafar1810@gmail.com', style: TextStyle(color: soft)),
+          Text('github.com/Shayan1810/FiT-App', style: TextStyle(color: soft)),
           const SizedBox(height: 12),
           Text(
             'Nebula\'s advice is educational and based on published research; it is not medical advice. '

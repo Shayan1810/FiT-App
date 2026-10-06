@@ -20,6 +20,7 @@ class UserProfile extends Equatable {
     this.goal = GoalType.maintain,
     this.weeklyRateKg = 0.0,
     this.photoPath,
+    this.bmrAdjustPct = 0,
   });
 
   final String name;
@@ -37,6 +38,10 @@ class UserProfile extends Equatable {
   /// Desired weekly change in kg (always positive; direction comes from [goal]).
   final double weeklyRateKg;
   final String? photoPath;
+
+  /// Manual metabolism adjustment in % applied to BMR (e.g. −10 for a
+  /// medication or thyroid condition that lowers resting energy use).
+  final double bmrAdjustPct;
 
   /// Age in whole years today.
   int get age => DateKeys.ageFrom(dateOfBirth);
@@ -61,6 +66,7 @@ class UserProfile extends Equatable {
     GoalType? goal,
     double? weeklyRateKg,
     String? photoPath,
+    double? bmrAdjustPct,
   }) {
     return UserProfile(
       name: name ?? this.name,
@@ -72,6 +78,7 @@ class UserProfile extends Equatable {
       goal: goal ?? this.goal,
       weeklyRateKg: weeklyRateKg ?? this.weeklyRateKg,
       photoPath: photoPath ?? this.photoPath,
+      bmrAdjustPct: bmrAdjustPct ?? this.bmrAdjustPct,
     );
   }
 
@@ -86,5 +93,6 @@ class UserProfile extends Equatable {
     goal,
     weeklyRateKg,
     photoPath,
+    bmrAdjustPct,
   ];
 }

@@ -12,9 +12,11 @@ import '../nutrition/data/sync/sync_coordinator.dart';
 import '../nutrition/presentation/pages/nutrition_page.dart';
 import '../progress/presentation/progress_page.dart';
 import '../sleep/presentation/sleep_page.dart';
+import '../transformation/presentation/transformation_cubit.dart';
+import '../transformation/presentation/transformation_page.dart';
 import '../workout/presentation/pages/train_page.dart';
 
-/// Tab indices of the shell.
+/// Tab indices of the shell. In Transformation mode tab 0 is the plan.
 class AppTab {
   AppTab._();
   static const int today = 0, food = 1, train = 2, sleep = 3, progress = 4, coach = 5;
@@ -39,8 +41,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _index = 0;
   int _previous = 0;
 
+  static const _todayItem = NavItem(Icons.dashboard_rounded, 'Today');
+  static const _planItem = NavItem(Icons.flag_rounded, 'Plan');
+
   static const _items = [
-    NavItem(Icons.dashboard_rounded, 'Today'),
+    _todayItem,
     NavItem(Icons.restaurant_rounded, 'Food'),
     NavItem(Icons.fitness_center_rounded, 'Train'),
     NavItem(Icons.nightlight_round, 'Sleep'),
@@ -83,19 +88,28 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final forward = _index >= _previous;
+    // Transformation mode replaces the Today tab with the plan.
+    final planMode = context.select((TransformationCubit c) => c.state.isActive(DateTime.now()));
+    final pages = [planMode ? const TransformationPage() : const TodayPage(), ..._pages.skip(1)];
+    final items = [planMode ? _planItem : _todayItem, ..._items.skip(1)];
     return Scaffold(
       extendBody: true,
       body: IndexedStack(
         index: _index,
         children: [
-          for (var i = 0; i < _pages.length; i++)
+          for (var i = 0; i < pages.length; i++)
             TickerMode(
               enabled: i == _index,
-              child: _TabTurn(active: i == _index, forward: forward, child: _pages[i]),
+              child: _TabTurn(
+                key: i == 0 ? ValueKey(planMode) : null,
+                active: i == _index,
+                forward: forward,
+                child: pages[i],
+              ),
             ),
         ],
       ),
-      bottomNavigationBar: NavBar3D(items: _items, index: _index, onChanged: _select),
+      bottomNavigationBar: NavBar3D(items: items, index: _index, onChanged: _select),
     );
   }
 }
@@ -103,7 +117,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 /// Short 3D swing-in played whenever a tab becomes active. The wrapper is
 /// always present, so the page below keeps its state.
 class _TabTurn extends StatefulWidget {
-  const _TabTurn({required this.child, required this.active, required this.forward});
+  const _TabTurn({super.key, required this.child, required this.active, required this.forward});
   final Widget child;
   final bool active;
   final bool forward;
