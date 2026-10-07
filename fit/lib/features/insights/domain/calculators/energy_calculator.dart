@@ -163,7 +163,9 @@ class EnergyCalculator {
     double exercise = 0;
     if (deviceActiveKcal != null && deviceActiveKcal > 0) {
       neat = deviceActiveKcal;
-      for (final s in workouts.where((s) => s.source == DataSource.manual && s.type != WorkoutType.walk)) {
+      for (final s in workouts.where(
+        (s) => s.source != DataSource.healthConnect && s.type != WorkoutType.walk,
+      )) {
         exercise += workoutKcal(s, weightKg: w);
       }
     } else {

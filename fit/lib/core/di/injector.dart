@@ -8,6 +8,8 @@ import '../../features/health_sync/data/health_connect_source.dart';
 import '../../features/health_sync/data/health_sync_repository_impl.dart';
 import '../../features/health_sync/domain/health_sync_repository.dart';
 import '../../features/insights/domain/usecases/build_health_snapshot.dart';
+import '../../features/hevy/data/hevy_client.dart';
+import '../../features/hevy/data/hevy_sync.dart';
 import '../../features/insights/domain/usecases/generate_briefing.dart';
 import '../../features/progress/domain/get_progress.dart';
 import '../../features/nutrition/data/datasources/gemini_nutrition_client.dart';
@@ -217,6 +219,16 @@ Future<void> configureDependencies({
       nutrition: nutrition,
       workouts: sl<WorkoutRepository>(),
       sleep: sl<SleepRepository>(),
+    ),
+  );
+
+  // ── Hevy ──────────────────────────────────────────────────────────
+  sl.registerSingleton<HevySync>(
+    HevySync(
+      client: HevyClient(sl<http.Client>()),
+      settings: settings,
+      workouts: sl<WorkoutRepository>(),
+      plans: transformation,
     ),
   );
 

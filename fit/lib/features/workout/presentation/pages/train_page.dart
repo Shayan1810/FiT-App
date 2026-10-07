@@ -594,7 +594,7 @@ class _History extends StatelessWidget {
                         children: [
                           Text(s.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                           Text(
-                            '${DateKeys.friendly(s.start)} · ${s.durationMin} min · RPE ${s.rpe}'
+                            '${s.source == DataSource.hevy ? 'Hevy · ' : ''}${DateKeys.friendly(s.start)} · ${s.durationMin} min · RPE ${s.rpe}'
                             '${s.sets.isNotEmpty ? ' · ${s.sets.length} sets · ${fmtInt(s.volume)} kg vol' : ''}',
                             style: AppText.caption,
                           ),

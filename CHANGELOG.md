@@ -4,6 +4,10 @@ All notable changes to FiT are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-10-07
+
+- Updated Transformation Section.
+
 ## [2.0.0] - 2026-10-06
 
 ### Added

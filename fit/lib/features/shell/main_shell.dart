@@ -7,6 +7,7 @@ import '../activity/presentation/bloc/activity_cubit.dart';
 import '../coach/presentation/coach_page.dart';
 import '../dashboard/presentation/today_page.dart';
 import '../health_sync/domain/health_sync_repository.dart';
+import '../hevy/data/hevy_sync.dart';
 import '../insights/presentation/bloc/insights_bloc.dart';
 import '../nutrition/data/sync/sync_coordinator.dart';
 import '../nutrition/presentation/pages/nutrition_page.dart';
@@ -59,6 +60,13 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _syncHevy();
+  }
+
+  /// Pulls new Hevy workouts quietly (only when connected).
+  void _syncHevy() {
+    final hevy = sl<HevySync>();
+    if (hevy.configured) hevy.sync();
   }
 
   @override
@@ -75,6 +83,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final activity = context.read<ActivityCubit>();
     if (activity.state.link == HealthLinkStatus.connected) activity.sync(quiet: true);
     sl<SyncCoordinator>().drain();
+    _syncHevy();
   }
 
   void _select(int i) {

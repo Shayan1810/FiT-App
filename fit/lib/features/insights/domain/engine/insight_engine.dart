@@ -13,6 +13,7 @@ import '../calculators/training_load_calculator.dart';
 import '../calculators/weight_trend_calculator.dart';
 import '../entities/daily_briefing.dart';
 import '../entities/health_snapshot.dart';
+import '../../../transformation/domain/calculators/strength_calculator.dart';
 import '../../../transformation/domain/calculators/transformation_calculator.dart';
 import '../../../transformation/domain/entities/transformation_plan.dart';
 import '../../../transformation/domain/usecases/toggle_plan_item.dart';
@@ -177,7 +178,7 @@ class InsightEngine {
 
     // ── Tomorrow's plan ─────────────────────────────────────────────
     final training = tPlan != null && tPlan.contains(tomorrowDate)
-        ? _planTraining(tPlan, tomorrowDate, recovery, p)
+        ? _planTraining(tPlan, tomorrowDate, recovery, p, s.workouts)
         : _recommendTraining(recovery, load, now, p);
     final tdeeTomorrow = tdee - exAvg + training.plannedKcal;
     var bed = SleepCalculator.recommendBedtime(sleep, now);
@@ -255,6 +256,7 @@ class InsightEngine {
       _planSkinStreak(ctx),
       _planWeighIn(ctx),
       _planStreak(ctx),
+      _planStrength(ctx),
     ].whereType<Insight>().toList()..sort((a, b) => b.priority.compareTo(a.priority));
 
     final voice = CoachVoice.compose(
@@ -314,6 +316,7 @@ class InsightEngine {
     DateTime day,
     RecoveryScore r,
     UserProfile p,
+    List<WorkoutSession> history,
   ) {
     final ws = plan.workoutsOn(day);
     if (ws.isEmpty) {
@@ -340,12 +343,18 @@ class InsightEngine {
     }.toList();
     final rpes = [for (final w in ws) w.rpe ?? 7];
     final rpe = rpes.reduce(max);
+    String fmt(double kg) => kg % 1 == 0 ? kg.toStringAsFixed(0) : kg.toStringAsFixed(1);
     var detail = ws
-        .map(
-          (w) => w.exercises.isEmpty
-              ? w.title
-              : '${w.title}: ${w.exercises.map((e) => '${e.name} ${e.sets}×${e.reps}${e.weightKg > 0 ? ' @ ${e.weightKg.toStringAsFixed(e.weightKg % 1 == 0 ? 0 : 1)} kg' : ''}').join(', ')}',
-        )
+        .map((w) {
+          if (w.exercises.isEmpty) return w.title;
+          final targets = w.exercises.map((e) {
+            final sug = StrengthCalculator.suggest(e, StrengthCalculator.history(history, e.exerciseId));
+            final load = sug.kg > 0 ? ' @ ${fmt(sug.kg)} kg' : '';
+            final up = sug.isIncrease ? ' (+${fmt(sug.kg - sug.last!.topKg)})' : '';
+            return '${e.name} ${sug.sets}×${sug.reps}$load$up';
+          });
+          return '${w.title}: ${targets.join(', ')}';
+        })
         .join('. ');
     if (r.readiness == Readiness.recover) {
       detail +=
@@ -1225,6 +1234,50 @@ class InsightEngine {
           'Repeating behaviours in a stable context makes them automatic; on average it takes about 66 days.',
       reference: 'Lally P et al. (2010) Eur J Soc Psychol 40:998',
       priority: 32,
+    );
+  }
+
+  static Insight? _planStrength(_Ctx c) {
+    final t = c.tf;
+    if (t == null || !t.started) return null;
+    final comparable = [
+      for (final x in t.strength)
+        if (x.sessions >= 2 && x.e1rmChangePct != null) x,
+    ];
+    if (comparable.isEmpty) return null;
+    final dropping = [
+      for (final x in comparable)
+        if (x.e1rmChangePct! <= -5) x,
+    ];
+    if (dropping.isNotEmpty && t.plan.hasBody) {
+      final d = dropping.last;
+      return Insight(
+        id: 'plan_strength_down',
+        category: InsightCategory.training,
+        tone: InsightTone.warning,
+        title: '${d.name} strength down ${d.e1rmChangePct!.abs().toStringAsFixed(0)} %',
+        message:
+            'Estimated 1RM ${d.first.e1rm.toStringAsFixed(0)} to ${d.latest.e1rm.toStringAsFixed(0)} kg since day 1. '
+            'Keep protein high, sleep enough and avoid a deficit beyond ~1 % of body weight per week.',
+        why: 'Losing strength during a cut is an early sign of losing muscle rather than fat.',
+        reference: 'Helms ER et al. (2014) JISSN 11:20',
+        priority: 66,
+      );
+    }
+    final best = comparable.first;
+    if (best.e1rmChangePct! < 2) return null;
+    return Insight(
+      id: 'plan_strength_up',
+      category: InsightCategory.training,
+      tone: InsightTone.positive,
+      title: '${best.name} +${best.e1rmChangePct!.toStringAsFixed(0)} % stronger',
+      message:
+          'Estimated 1RM ${best.first.e1rm.toStringAsFixed(0)} to ${best.latest.e1rm.toStringAsFixed(0)} kg '
+          'over ${best.sessions} sessions of this plan. Keep adding load when you hit all your reps.',
+      why:
+          'Progressive overload — adding load once the target reps are reached — drives strength and muscle gain.',
+      reference: 'ACSM (2009) Med Sci Sports Exerc 41:687',
+      priority: 33,
     );
   }
 }

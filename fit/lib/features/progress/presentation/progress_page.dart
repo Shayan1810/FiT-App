@@ -50,7 +50,11 @@ class ProgressPage extends StatelessWidget {
                   child: _RangeSelector(st.range, plan: context.read<ProgressCubit>().hasPlan),
                 ),
                 SliverToBoxAdapter(
-                  child: _CategoryChips(st.category, plan: r?.of(ProgressCategory.plan).isNotEmpty ?? false),
+                  child: _CategoryChips(
+                    st.category,
+                    plan: r?.of(ProgressCategory.plan).isNotEmpty ?? false,
+                    skin: r?.of(ProgressCategory.skin).isNotEmpty ?? false,
+                  ),
                 ),
                 if (r == null)
                   const SliverToBoxAdapter(
@@ -77,6 +81,8 @@ class ProgressPage extends StatelessWidget {
     var i = 0;
     return [
       if (c == ProgressCategory.training) ...[
+        if (r.exercises.any((e) => e.sessions >= 1))
+          Entrance(index: i++, child: _StrengthChangeCard(r.exercises)),
         Entrance(index: i++, child: _ExerciseCard(r.exercises)),
         Entrance(index: i++, child: _MuscleHeatmap(r)),
       ],
@@ -187,12 +193,14 @@ class _RangeSelector extends StatelessWidget {
 }
 
 class _CategoryChips extends StatelessWidget {
-  const _CategoryChips(this.category, {required this.plan});
+  const _CategoryChips(this.category, {required this.plan, required this.skin});
   final ProgressCategory category;
   final bool plan;
+  final bool skin;
 
   static IconData _icon(ProgressCategory c) => switch (c) {
     ProgressCategory.plan => Icons.flag_rounded,
+    ProgressCategory.skin => Icons.face_retouching_natural_rounded,
     ProgressCategory.nutrition => Icons.restaurant_rounded,
     ProgressCategory.body => Icons.monitor_weight_rounded,
     ProgressCategory.activity => Icons.directions_walk_rounded,
@@ -210,7 +218,7 @@ class _CategoryChips extends StatelessWidget {
         runSpacing: 8,
         children: [
           for (final c in ProgressCategory.values)
-            if (c != ProgressCategory.plan || plan)
+            if ((c != ProgressCategory.plan || plan) && (c != ProgressCategory.skin || skin))
               ChoiceChip(
                 avatar: Icon(
                   _icon(c),
@@ -683,4 +691,82 @@ class _MuscleHeatmap extends StatelessWidget {
       Text(t, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
     ],
   );
+}
+
+/// First vs latest session of every exercise in the selected range.
+class _StrengthChangeCard extends StatelessWidget {
+  const _StrengthChangeCard(this.exercises);
+  final List<ExerciseProgress> exercises;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = [
+      for (final e in exercises)
+        if (e.sessions >= 1) e,
+    ];
+    double? pct(ExerciseProgress e) {
+      final first = e.e1rm.firstWhere((v) => v > 0, orElse: () => 0);
+      final last = e.e1rm.lastWhere((v) => v > 0, orElse: () => 0);
+      return first <= 0 || last <= 0 || e.sessions < 2 ? null : (last / first - 1) * 100;
+    }
+
+    rows.sort((a, b) => (pct(b) ?? -999).compareTo(pct(a) ?? -999));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: DepthCard(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bolt_rounded, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Strength change', style: AppText.subtitle)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text('Estimated 1RM, first vs latest session in this range.', style: AppText.caption),
+            const SizedBox(height: 8),
+            for (final e in rows.take(10))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(e.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(
+                            e.e1rm.any((v) => v > 0)
+                                ? '${e.e1rm.firstWhere((v) => v > 0, orElse: () => 0).toStringAsFixed(0)} to '
+                                      '${e.e1rm.lastWhere((v) => v > 0, orElse: () => 0).toStringAsFixed(0)} kg · ${e.sessions} sessions'
+                                : '${e.bestReps.first.toStringAsFixed(0)} to ${e.bestReps.last.toStringAsFixed(0)} reps · ${e.sessions} sessions',
+                            style: AppText.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Builder(
+                      builder: (_) {
+                        final v = pct(e);
+                        if (v == null) {
+                          return Pill(e.sessions < 2 ? 'new' : '–', color: AppColors.textSecondary);
+                        }
+                        return Pill(
+                          '${v >= 0 ? '+' : ''}${v.toStringAsFixed(1)} %',
+                          color: v >= 0 ? AppColors.success : AppColors.danger,
+                          icon: v >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -28,7 +28,10 @@ void main() {
         if (s.secondary != null) expect(s.secondary, hasLength(n), reason: s.id);
       }
       expect(r.of(ProgressCategory.plan), isEmpty); // General mode
-      for (final c in ProgressCategory.values.where((c) => c != ProgressCategory.plan)) {
+      expect(r.of(ProgressCategory.skin), isEmpty);
+      for (final c in ProgressCategory.values.where(
+        (c) => c != ProgressCategory.plan && c != ProgressCategory.skin,
+      )) {
         expect(r.of(c).any((s) => s.count > 0), isTrue, reason: '${c.label} @ $days d');
       }
     }
@@ -61,8 +64,23 @@ void main() {
     await seed();
     await DemoTransformation.seed(sl<TransformationRepository>(), daysAgo: 12);
     final r = (await GetProgress(sl<BuildHealthSnapshot>(), useIsolate: false)(13))!;
+    List<String> ids(ProgressCategory c) => r.of(c).map((s) => s.id).toList();
     final plan = r.of(ProgressCategory.plan);
-    expect(plan.map((s) => s.id), containsAll(['plan_fat', 'plan_weight', 'plan_adherence', 'plan_skin']));
+    expect(
+      ids(ProgressCategory.plan),
+      containsAll(['plan_adherence', 'plan_fat', 'plan_balance', 'plan_supplements']),
+    );
+    expect(ids(ProgressCategory.nutrition), contains('plan_meals'));
+    expect(ids(ProgressCategory.training), containsAll(['plan_workouts', 'plan_cardio']));
+    expect(ids(ProgressCategory.body), containsAll(['plan_weight', 'plan_bodyfat']));
+    expect(
+      ids(ProgressCategory.skin),
+      containsAll(['plan_skin', 'plan_skin_morning', 'plan_skin_afternoon', 'plan_skin_evening']),
+    );
+    // Plan goals become target lines.
+    expect(r.series.firstWhere((s) => s.id == 'kcal').target, 2050);
+    expect(r.series.firstWhere((s) => s.id == 'steps').target, 9000);
+    expect(r.series.firstWhere((s) => s.id == 'sleep').target, 8);
     final adherence = plan.firstWhere((s) => s.id == 'plan_adherence');
     expect(adherence.values.whereType<double>(), everyElement(inInclusiveRange(0, 100)));
     expect(adherence.count, greaterThanOrEqualTo(12));

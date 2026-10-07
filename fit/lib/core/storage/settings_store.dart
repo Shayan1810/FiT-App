@@ -17,6 +17,8 @@ class SettingsStore {
   static const String kLastHealthSync = 'last_health_sync';
   static const String kAppMode = 'app_mode';
   static const String kActivePlan = 'active_plan';
+  static const String kHevyApiKey = 'hevy_api_key';
+  static const String kHevyLastSync = 'hevy_last_sync';
   static const String kStatsPrefix = 'stat_';
 
   /// API key passed at build time with `--dart-define=GEMINI_API_KEY=...`.

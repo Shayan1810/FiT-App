@@ -18,16 +18,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.0.0.apk"><b>⬇ Download for Android</b></a>
+  <a href="https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.1.0.apk"><b>⬇ Download for Android</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.0.0-unsigned.ipa"><b>⬇ Download for iPhone</b></a>
+  <a href="https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.1.0-unsigned.ipa"><b>⬇ Download for iPhone</b></a>
 </p>
 
 <p align="center">
   <img src="docs/screenshots/21_plan.png" width="19%"/>
   <img src="docs/screenshots/22_plan_checklist.png" width="19%"/>
   <img src="docs/screenshots/26_progress_plan.png" width="19%"/>
-  <img src="docs/screenshots/24_plan_editor_body.png" width="19%"/>
+  <img src="docs/screenshots/29_plan_strength.png" width="19%"/>
   <img src="docs/screenshots/28_coach_plan.png" width="19%"/>
 </p>
 <p align="center">
@@ -64,6 +64,8 @@ In Transformation mode you also get:
 * **Estimated vs planned vs scale weight**, estimated body-fat %, and the projected end weight at your current pace.
 * **Progress charts limited to the plan period**: plan completion, daily balance, fat lost, skincare and every General-mode metric.
 * **Nebula follows the plan**: tomorrow's workout comes from your schedule, adjusted for readiness. It flags missed items, open items in the evening, falling behind plan, streaks and skipped skincare.
+* **Strength tracking**: log the sets you actually did, get a progressive-overload target for every exercise, and see each lift's strength change since day 1.
+* **Sections for everything**: Progress splits the plan period into Overview, Nutrition, Workout, Body, Skin, Sleep, Activity and Recovery, with your plan's goals drawn as target lines.
 * **Import / export**: copy a plan as text to back it up or move it to another phone.
 
 ## Features
@@ -78,6 +80,8 @@ In Transformation mode you also get:
 | 🧠 **Nebula coach** | Readiness score and a **recovery-speed factor** that accounts for sleep, under-eating, low protein, age and recent training damage. Tomorrow's targets and plan, explained in plain language. |
 | 🌗 **Light & dark** | A purple light theme and a black + lime dark theme that matches the logo. You can switch in Settings or follow the system. |
 | 🏁 **Transformation plans** | Goals, targets, a full weekly schedule and a daily checklist that logs itself. See [Two modes](#two-modes). |
+| 🏋️ **Hevy sync** | Connect your Hevy account (API key) and workouts logged in Hevy are imported automatically, matched to FiT's exercises, and tick the day's planned workout. |
+| 💾 **Backup & restore** | Copy all your data as one line of text and restore it on any phone. App updates install over the old version and keep your data. |
 | 🔒 **Private & offline** | Everything is stored on your phone. AI meal recognition (Google Gemini) is optional and only used for foods FiT doesn't already know. |
 
 ## The science
@@ -97,13 +101,13 @@ In Transformation mode you also get:
 ## Install
 
 ### Android
-1. On your phone, download **[FiT-v2.0.0.apk](https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.0.0.apk)**.
+1. On your phone, download **[FiT-v2.1.0.apk](https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.1.0.apk)**.
 2. Open it and allow *Install unknown apps* when asked.
 3. *Optional:* in **Samsung Health → Settings → Health Connect**, turn sync on, then tap **Train → Connect** in FiT.
 
 ### iPhone
 FiT isn't on the App Store yet, so the iPhone build is installed by sideloading:
-1. On a computer, download **[FiT-v2.0.0-unsigned.ipa](https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.0.0-unsigned.ipa)**.
+1. On a computer, download **[FiT-v2.1.0-unsigned.ipa](https://github.com/Shayan1810/FiT-App/releases/latest/download/FiT-v2.1.0-unsigned.ipa)**.
 2. Install it with [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) using your Apple ID. With a free Apple ID the app must be refreshed every 7 days.
 3. *Optional:* tap **Train → Connect** in FiT and allow Apple Health access.
 

@@ -4,6 +4,7 @@ import 'package:fit/core/di/injector.dart';
 import 'package:fit/core/utils/date_utils.dart';
 import 'package:fit/core/widgets/nav_bar_3d.dart';
 import 'package:fit/features/transformation/domain/repositories/transformation_repository.dart';
+import 'package:fit/features/workout/domain/repositories/workout_repository.dart';
 import 'package:fit/features/coach/presentation/coach_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,7 +114,7 @@ void main() {
     await settle(t, 2500);
     expect(find.text('Progress'), findsWidgets);
     expect(find.text('Calories eaten'), findsOneWidget);
-    for (final c in ['Body', 'Activity', 'Sleep', 'Training', 'Recovery']) {
+    for (final c in ['Body', 'Activity', 'Sleep', 'Workout', 'Recovery']) {
       await t.tap(find.widgetWithText(ChoiceChip, c));
       await settle(t, 1000);
       await t.drag(find.byType(CustomScrollView).first, const Offset(0, -2500));
@@ -122,10 +123,15 @@ void main() {
       await settle(t, 500);
     }
     expect(find.text('Strength by exercise'), findsNothing); // on Recovery now
-    await t.tap(find.widgetWithText(ChoiceChip, 'Training'));
+    await t.tap(find.widgetWithText(ChoiceChip, 'Workout'));
     await settle(t, 1000);
+    expect(find.text('Strength change'), findsOneWidget);
+    await t.drag(find.byType(CustomScrollView).first, const Offset(0, -900));
+    await settle(t, 600);
     expect(find.text('Strength by exercise'), findsOneWidget);
     expect(find.text('Sets per muscle per week'), findsOneWidget);
+    await t.drag(find.byType(CustomScrollView).first, const Offset(0, 3000));
+    await settle(t, 600);
     await t.tap(find.text('1 Y'));
     await settle(t, 2500);
     expect(find.text('Strength by exercise'), findsOneWidget);
@@ -214,9 +220,35 @@ void main() {
     await settle(t, 600);
     final lunch = find.bySemanticsLabel('Lunch done');
     expect(lunch, findsOneWidget);
+    // Bring the tile to the middle of the screen, clear of the floating nav bar.
+    final y = t.getCenter(lunch).dy;
+    await t.drag(scroll, Offset(0, 420 - y));
+    await settle(t, 600);
     await t.tap(lunch);
     await settle(t, 1200);
     expect(sl<TransformationRepository>().checksFor(DateKeys.of(DateTime.now())), contains('m_lunch'));
+
+    // Today's planned workout (if it isn't a rest day): open it, log sets.
+    final workout = find.textContaining(RegExp(r'^(Push|Pull|Leg) day$'));
+    if (workout.evaluate().isNotEmpty) {
+      await t.drag(scroll, Offset(0, 420 - t.getCenter(workout.first).dy));
+      await settle(t, 600);
+      await t.tap(workout.first);
+      await settle(t, 800);
+      expect(find.text("Today's targets (progressive overload)"), findsOneWidget);
+      await t.tap(find.text('Log sets'));
+      await settle(t, 800);
+      expect(find.text('Set 1'), findsWidgets);
+      await t.enterText(find.widgetWithText(TextField, 'kg').first, '72.5');
+      final sheetList = find.ancestor(of: find.text('Set 1').first, matching: find.byType(Scrollable)).first;
+      await t.scrollUntilVisible(find.text('Save workout'), 300, scrollable: sheetList);
+      await t.tap(find.text('Save workout'));
+      await settle(t, 1200);
+      final sessions = sl<WorkoutRepository>().sessions().where(
+        (x) => x.id.startsWith('plan_${DateKeys.of(DateTime.now())}'),
+      );
+      expect(sessions.single.sets.first.weightKg, 72.5);
+    }
     await t.drag(scroll, const Offset(0, -3000));
     await settle(t, 600);
     await t.drag(scroll, const Offset(0, 5000));

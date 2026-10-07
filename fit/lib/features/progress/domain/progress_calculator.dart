@@ -10,19 +10,21 @@ import '../../insights/domain/entities/health_snapshot.dart';
 import '../../transformation/domain/calculators/transformation_calculator.dart';
 import '../../transformation/domain/entities/transformation_plan.dart';
 import '../../workout/domain/entities/exercise.dart';
+import '../../workout/domain/entities/workout_session.dart';
 
 /// Groups shown as filter chips on the Progress screen.
-enum ProgressCategory { plan, nutrition, body, activity, sleep, training, recovery }
+enum ProgressCategory { plan, nutrition, training, body, skin, sleep, activity, recovery }
 
 extension ProgressCategoryX on ProgressCategory {
   /// Display label.
   String get label => switch (this) {
-    ProgressCategory.plan => 'Plan',
+    ProgressCategory.plan => 'Overview',
+    ProgressCategory.skin => 'Skin',
     ProgressCategory.nutrition => 'Nutrition',
     ProgressCategory.body => 'Body',
     ProgressCategory.activity => 'Activity',
     ProgressCategory.sleep => 'Sleep',
-    ProgressCategory.training => 'Training',
+    ProgressCategory.training => 'Workout',
     ProgressCategory.recovery => 'Recovery',
   };
 }
@@ -399,10 +401,24 @@ class ProgressCalculator {
       secondary: secondary,
     );
 
+    // Plan goals become target lines while a transformation is active.
+    final goalPlan = s.transformation?.plan;
+    final bodyPlan = goalPlan != null && goalPlan.hasBody ? goalPlan : null;
     const nu = ProgressCategory.nutrition, bo = ProgressCategory.body, ac = ProgressCategory.activity;
     const sl = ProgressCategory.sleep, tr = ProgressCategory.training, re = ProgressCategory.recovery;
     final series = <MetricSeries>[
-      m('kcal', nu, 'Calories eaten', 'kcal', kcal, 'Total energy logged per day.', bars: true),
+      m(
+        'kcal',
+        nu,
+        'Calories eaten',
+        'kcal',
+        kcal,
+        bodyPlan == null
+            ? 'Total energy logged per day.'
+            : 'Total energy logged per day. Line: your plan target.',
+        bars: true,
+        target: bodyPlan?.macros.kcal,
+      ),
       m(
         'balance',
         nu,
@@ -412,7 +428,16 @@ class ProgressCalculator {
         'Intake minus estimated expenditure. Below zero = deficit (fat loss), above = surplus.',
         bars: true,
       ),
-      m('protein', nu, 'Protein', 'g', protein, 'Grams of protein per day.', up: true),
+      m(
+        'protein',
+        nu,
+        'Protein',
+        'g',
+        protein,
+        'Grams of protein per day.',
+        up: true,
+        target: bodyPlan?.macros.protein,
+      ),
       m(
         'protein_kg',
         nu,
@@ -473,6 +498,7 @@ class ProgressCalculator {
         'Daily steps (phone / watch sync or manual).',
         bars: true,
         up: true,
+        target: goalPlan?.stepsGoal?.toDouble(),
       ),
       m('km', ac, 'Distance', 'km', km, 'Walking + running distance.', decimals: 1, up: true),
       m('active', ac, 'Active energy', 'kcal', active, 'Device-measured active calories.', up: true),
@@ -503,6 +529,7 @@ class ProgressCalculator {
         decimals: 1,
         bars: true,
         up: true,
+        target: goalPlan?.sleepHours,
       ),
       m(
         'sleep_score',
@@ -626,96 +653,218 @@ class ProgressCalculator {
     if (tin != null && tin.days.isNotEmpty) {
       final st = TransformationCalculator.compute(input: tin, profile: p, weights: s.weights, now: s.now);
       final byKey = {for (final d in st.days) d.dayKey: d};
-      final adherence = empty(),
-          cumFat = empty(),
-          estW = empty(),
-          planW = empty(),
-          skin = empty(),
-          bal = empty();
+      final plan = tin.plan;
+      final adherence = empty(), cumFat = empty(), estW = empty(), planW = empty(), estBf = empty();
+      final skin = empty(), bal = empty(), meals = empty(), workoutsDone = empty(), cardioMin = empty();
+      final supplements = empty();
+      final slots = {for (final r in RoutineSlot.values) r: empty()};
       var net = 0.0;
-      final startW = tin.plan.startWeightKg ?? p.weightKg;
+      final startW = plan.startWeightKg ?? p.weightKg;
+      double? pct(List<PlanItem> xs, Set<String> done) =>
+          xs.isEmpty ? null : xs.where((x) => done.contains(x.id)).length / xs.length * 100;
       for (var i = 0; i < n; i++) {
         final d = byKey[s.days[i].dayKey];
         if (d == null) continue;
-        if (!d.isToday) adherence[i] = d.adherence * 100;
+        List<PlanItem> kind(PlanItemKind k) => [
+          for (final x in d.items)
+            if (x.kind == k) x,
+        ];
+        if (!d.isToday) {
+          adherence[i] = d.adherence * 100;
+          meals[i] = pct(kind(PlanItemKind.meal), d.doneIds);
+          workoutsDone[i] = pct(kind(PlanItemKind.workout), d.doneIds);
+          supplements[i] = pct([...kind(PlanItemKind.supplement), ...kind(PlanItemKind.habit)], d.doneIds);
+        }
+        final cardio = s.days[i].workouts
+            .where((w) => w.sets.isEmpty && w.type != WorkoutType.strength)
+            .fold<int>(0, (a, w) => a + w.durationMin);
+        if (cardio > 0 || !d.isToday) cardioMin[i] = cardio.toDouble();
         final b = d.balance;
         if (b != null) {
           net += b;
           bal[i] = b;
         }
-        if (d.skincare.isNotEmpty) {
-          skin[i] = d.skincare.where((x) => d.doneIds.contains(x.id)).length / d.skincare.length * 100;
+        if (d.skincare.isNotEmpty && !d.isToday) {
+          skin[i] = pct(d.skincare, d.doneIds);
+          for (final x in d.skincare) {
+            final slot = x.routineSlot;
+            if (slot != null) slots[slot]![i] = d.doneIds.contains(x.id) ? 100 : 0;
+          }
         }
-        if (tin.plan.hasBody) {
-          cumFat[i] = net < 0
-              ? -net / TransformationStatus.kcalPerKgFat
-              : -net / TransformationStatus.kcalPerKgGain;
-          estW[i] =
-              startW +
-              (net < 0 ? net / TransformationStatus.kcalPerKgFat : net / TransformationStatus.kcalPerKgGain);
-          planW[i] = tin.plan.plannedWeightOn(d.date);
+        if (plan.hasBody) {
+          final change = net < 0
+              ? net / TransformationStatus.kcalPerKgFat
+              : net / TransformationStatus.kcalPerKgGain;
+          cumFat[i] = -change;
+          estW[i] = startW + change;
+          planW[i] = plan.plannedWeightOn(d.date);
+          if (plan.startBodyFatPct != null) {
+            final fatMass = startW * plan.startBodyFatPct! / 100 + (net < 0 ? change : change * 0.5);
+            estBf[i] = (fatMass / estW[i]! * 100).clamp(3.0, 60.0);
+          }
         }
       }
-      const pl = ProgressCategory.plan;
-      final gaining = tin.plan.bodyGoal == BodyGoal.weightGain;
+      const ov = ProgressCategory.plan, sk = ProgressCategory.skin;
+      final gaining = plan.bodyGoal == BodyGoal.weightGain;
+      MetricSeries ps(
+        String id,
+        ProgressCategory c,
+        String title,
+        String unit,
+        List<double?> v,
+        String about, {
+        int decimals = 0,
+        bool bars = false,
+        double? target,
+        bool? up,
+        List<double?>? secondary,
+      }) => MetricSeries(
+        id: id,
+        category: c,
+        title: title,
+        unit: unit,
+        values: v,
+        about: about,
+        decimals: decimals,
+        bars: bars,
+        target: target,
+        higherIsBetter: up,
+        secondary: secondary,
+      );
       planSeries.addAll([
-        if (tin.plan.hasBody) ...[
-          MetricSeries(
-            id: 'plan_fat',
-            category: pl,
-            title: gaining ? 'Mass gained (from surplus)' : 'Fat lost (from deficit)',
-            unit: 'kg',
-            values: gaining ? [for (final v in cumFat) v == null ? null : -v] : cumFat,
-            about:
-                'Cumulative energy balance ÷ 7 700 kcal per kg of fat (or 5 500 kcal per kg gained). '
+        // Overview
+        ps(
+          'plan_adherence',
+          ov,
+          'Plan completed',
+          '%',
+          adherence,
+          'Share of each day\'s checklist ticked. 80 % or more keeps your streak going.',
+          bars: true,
+          target: 80,
+          up: true,
+        ),
+        if (plan.hasBody) ...[
+          ps(
+            'plan_fat',
+            ov,
+            gaining ? 'Mass gained (from surplus)' : 'Fat lost (from deficit)',
+            'kg',
+            gaining ? [for (final v in cumFat) v == null ? null : -v] : cumFat,
+            'Cumulative energy balance ÷ 7 700 kcal per kg of fat (or 5 500 kcal per kg gained). '
                 'Unlike the scale, it ignores water and glycogen swings.',
             decimals: 2,
-            higherIsBetter: true,
+            up: true,
           ),
-          MetricSeries(
-            id: 'plan_weight',
-            category: pl,
-            title: 'Estimated vs planned weight',
-            unit: 'kg',
-            values: planW,
-            secondary: estW,
-            about:
-                'Line: weight estimated from energy balance. Dots: the straight-line plan from start to goal.',
-            decimals: 1,
-          ),
-          MetricSeries(
-            id: 'plan_balance',
-            category: pl,
-            title: 'Daily energy balance',
-            unit: 'kcal',
-            values: bal,
-            about: 'Intake − expenditure on each completed, logged day of the plan.',
+          ps(
+            'plan_balance',
+            ov,
+            'Daily energy balance',
+            'kcal',
+            bal,
+            'Intake − expenditure on each completed, logged day of the plan.',
             bars: true,
           ),
         ],
-        MetricSeries(
-          id: 'plan_adherence',
-          category: pl,
-          title: 'Plan completed',
-          unit: '%',
-          values: adherence,
-          about: 'Share of the day\'s checklist ticked. 80 % or more keeps your streak going.',
+        ps(
+          'plan_supplements',
+          ov,
+          'Supplements & habits done',
+          '%',
+          supplements,
+          'Share of planned supplements, medicine and habits ticked each day.',
           bars: true,
-          target: 80,
-          higherIsBetter: true,
+          target: 100,
+          up: true,
         ),
-        if (tin.plan.hasSkin)
-          MetricSeries(
-            id: 'plan_skin',
-            category: pl,
-            title: 'Skincare done',
-            unit: '%',
-            values: skin,
-            about: 'Share of the day\'s skincare routines completed.',
+        // Nutrition
+        if (plan.hasBody)
+          ps(
+            'plan_meals',
+            ProgressCategory.nutrition,
+            'Planned meals eaten',
+            '%',
+            meals,
+            'Share of the day\'s planned meals ticked.',
             bars: true,
             target: 100,
-            higherIsBetter: true,
+            up: true,
           ),
+        // Workout
+        if (plan.items.any((x) => x.kind == PlanItemKind.workout))
+          ps(
+            'plan_workouts',
+            ProgressCategory.training,
+            'Planned workouts done',
+            '%',
+            workoutsDone,
+            'Share of planned workouts completed on training days (rest days are empty).',
+            bars: true,
+            target: 100,
+            up: true,
+          ),
+        ps(
+          'plan_cardio',
+          ProgressCategory.training,
+          'Cardio minutes',
+          'min',
+          cardioMin,
+          'Minutes of walks, runs and other cardio logged each day.',
+          bars: true,
+          target: plan.cardioMinutesGoal?.toDouble(),
+          up: true,
+        ),
+        // Body
+        if (plan.hasBody) ...[
+          ps(
+            'plan_weight',
+            bo,
+            'Estimated vs planned weight',
+            'kg',
+            planW,
+            'Line: weight estimated from energy balance. Dots: the straight-line plan from start to goal.',
+            decimals: 1,
+            secondary: estW,
+          ),
+          if (plan.startBodyFatPct != null)
+            ps(
+              'plan_bodyfat',
+              bo,
+              'Estimated body fat',
+              '%',
+              estBf,
+              'Starting fat mass minus fat lost (plus half of any surplus), divided by the estimated weight.',
+              decimals: 1,
+              target: plan.goalBodyFatPct,
+              up: false,
+            ),
+        ],
+        // Skin
+        if (plan.hasSkin) ...[
+          ps(
+            'plan_skin',
+            sk,
+            'Skincare done',
+            '%',
+            skin,
+            'Share of the day\'s skincare routines completed.',
+            bars: true,
+            target: 100,
+            up: true,
+          ),
+          for (final slot in RoutineSlot.values)
+            if (slots[slot]!.any((v) => v != null))
+              ps(
+                'plan_skin_${slot.name}',
+                sk,
+                '${slot.label} routine',
+                '%',
+                slots[slot]!,
+                '100 = done that day, 0 = skipped.',
+                bars: true,
+                up: true,
+              ),
+        ],
       ]);
     }
 

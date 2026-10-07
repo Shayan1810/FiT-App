@@ -21,10 +21,12 @@ import '../../nutrition/presentation/widgets/add_food_sheet.dart';
 import '../../shell/main_shell.dart';
 import '../../sleep/presentation/sleep_page.dart';
 import '../../workout/presentation/pages/workout_editor_page.dart';
+import '../domain/calculators/strength_calculator.dart';
 import '../domain/calculators/transformation_calculator.dart';
 import '../domain/entities/transformation_plan.dart';
 import 'plan_editor_page.dart';
 import 'transformation_cubit.dart';
+import 'workout_log_sheet.dart';
 
 /// Home of Transformation mode: progress hero, Nebula's note, today's
 /// targets, the morning weigh-in and the daily checklist.
@@ -108,6 +110,8 @@ class TransformationPage extends StatelessWidget {
                                 checks: ts.checks,
                               ),
                             ),
+                          if (st != null && st.strength.isNotEmpty)
+                            Entrance(index: i++, child: _StrengthCard(st)),
                           Entrance(
                             index: i++,
                             child: _OffPlan(day: day),
@@ -848,16 +852,27 @@ Future<void> _showDetails(BuildContext context, PlanItem item) {
                   ],
                   if (item.exercises.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    for (final e in item.exercises)
+                    Text("Today's targets (progressive overload)", style: AppText.subtitle),
+                    const SizedBox(height: 4),
+                    for (final sug in cubit.suggestionsFor(item))
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Row(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: Text(e.name, style: AppText.body)),
-                            Text(
-                              '${e.sets} × ${e.reps}${e.weightKg > 0 ? ' @ ${e.weightKg.toStringAsFixed(e.weightKg % 1 == 0 ? 0 : 1)} kg' : ''}',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            Row(
+                              children: [
+                                Expanded(child: Text(sug.exercise.name, style: AppText.body)),
+                                Text(
+                                  '${sug.sets} × ${sug.reps}${sug.kg > 0 ? ' @ ${_kgStr(sug.kg)} kg' : ''}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: sug.isIncrease ? AppColors.success : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
                             ),
+                            Text(sug.reason, style: AppText.caption),
                           ],
                         ),
                       ),
@@ -867,6 +882,8 @@ Future<void> _showDetails(BuildContext context, PlanItem item) {
                     Text(
                       done
                           ? 'Logged automatically. Untick to remove it again.'
+                          : item.kind == PlanItemKind.workout && item.exercises.isNotEmpty
+                          ? 'Ticking repeats your last session of this workout. Use "Log sets" to record new weights and reps.'
                           : 'Ticking logs this automatically. Did something different? Log it your way below.',
                       style: AppText.caption,
                     ),
@@ -874,7 +891,19 @@ Future<void> _showDetails(BuildContext context, PlanItem item) {
                   const SizedBox(height: 18),
                   Row(
                     children: [
-                      if (item.kind.autoLogs) ...[
+                      if (item.kind == PlanItemKind.workout && item.exercises.isNotEmpty) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              showWorkoutLogSheet(context, item);
+                            },
+                            icon: const Icon(Icons.edit_note_rounded),
+                            label: const Text('Log sets'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ] else if (item.kind.autoLogs) ...[
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () {
@@ -962,6 +991,77 @@ class _Preview extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+String _kgStr(double v) => v % 1 == 0 ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+
+/// Strength change per exercise since day 1 of the plan.
+class _StrengthCard extends StatelessWidget {
+  const _StrengthCard(this.st);
+  final TransformationStatus st;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = st.strength.take(6).toList();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: DepthCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.trending_up_rounded, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Strength since day 1', style: AppText.subtitle)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('Estimated 1-rep max (Epley) of your first vs latest session.', style: AppText.caption),
+            const SizedBox(height: 8),
+            for (final x in list)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(x.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(
+                            x.first.e1rm > 0
+                                ? 'e1RM ${x.first.e1rm.toStringAsFixed(0)} to ${x.latest.e1rm.toStringAsFixed(0)} kg · '
+                                      'top ${_kgStr(x.latest.topKg)} kg · ${x.sessions} sessions'
+                                : 'best ${x.latest.sets.map((s) => s.$1).fold(0, (a, b) => a > b ? a : b)} reps · ${x.sessions} sessions',
+                            style: AppText.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    _change(x),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _change(StrengthChange x) {
+    final pct = x.e1rmChangePct;
+    if (x.sessions < 2) return Pill('new', color: AppColors.textSecondary);
+    if (pct == null) {
+      final r = x.repsChange;
+      return Pill('${r >= 0 ? '+' : ''}$r reps', color: r >= 0 ? AppColors.success : AppColors.danger);
+    }
+    return Pill(
+      '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)} %',
+      color: pct >= 0 ? AppColors.success : AppColors.danger,
+      icon: pct >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
     );
   }
 }

@@ -7,6 +7,8 @@ import '../../../core/utils/date_utils.dart';
 import '../../profile/domain/entities/user_profile.dart';
 import '../../profile/domain/entities/weight_entry.dart';
 import '../../profile/domain/repositories/profile_repository.dart';
+import '../../workout/domain/entities/workout_session.dart';
+import '../domain/calculators/strength_calculator.dart';
 import '../domain/entities/transformation_plan.dart';
 import '../domain/repositories/transformation_repository.dart';
 import '../domain/usecases/toggle_plan_item.dart';
@@ -177,6 +179,22 @@ class TransformationCubit extends Cubit<TransformationState> {
     emit(state.copyWith(checks: next));
     await _toggle(plan, item, day, done);
     _reload();
+  }
+
+  /// Next-session targets for each exercise of a planned workout.
+  List<OverloadSuggestion> suggestionsFor(PlanItem item) {
+    final day = state.day ?? _today;
+    return [
+      for (final e in item.exercises)
+        StrengthCalculator.suggest(e, _toggle.historyOf(e.exerciseId, before: day)),
+    ];
+  }
+
+  /// Saves the sets actually done for a planned workout and ticks it.
+  Future<void> logWorkout(PlanItem item, List<WorkoutSet> sets, {int? durationMin, int? rpe}) async {
+    final day = state.day ?? _today;
+    await _toggle.logWorkout(item, day, sets: sets, durationMin: durationMin, rpe: rpe);
+    _reload(message: '${item.title} logged: ${sets.length} sets');
   }
 
   /// Ticks every open item of a group at once (e.g. "Morning skincare").

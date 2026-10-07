@@ -95,10 +95,28 @@ Future<void> _transformation(WidgetTester t, void Function(WidgetTester) phone, 
   await t.drag(find.byType(CustomScrollView).first, const Offset(0, -900));
   await _settle(t);
   await _shot(t, '22_plan_checklist');
+  // A planned workout: overload targets and the set logger.
+  final workout = find.textContaining(RegExp(r'^(Push|Pull|Leg) day$'));
+  if (workout.evaluate().isNotEmpty) {
+    await t.drag(find.byType(CustomScrollView).first, Offset(0, 420 - t.getCenter(workout.first).dy));
+    await _settle(t, 600);
+    await t.tap(workout.first);
+    await _settle(t);
+    await _shot(t, '30_plan_workout_targets');
+    await t.tap(find.text('Log sets'));
+    await _settle(t);
+    await _shot(t, '31_plan_log_sets');
+    await t.tapAt(const Offset(200, 40));
+    await _settle(t, 800);
+  }
   await t.drag(find.byType(CustomScrollView).first, const Offset(0, -800));
   await _settle(t);
   await _shot(t, '23_plan_evening');
-  await t.drag(find.byType(CustomScrollView).first, const Offset(0, 3000));
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, -900));
+  await _settle(t);
+  await _shot(t, '29_plan_strength');
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, 5000));
+  await _settle(t, 600);
   await _settle(t, 600);
   await t.tap(find.byTooltip('Edit plan'));
   await _settle(t);
@@ -118,6 +136,14 @@ Future<void> _transformation(WidgetTester t, void Function(WidgetTester) phone, 
   await t.drag(find.byType(CustomScrollView).first, const Offset(0, -700));
   await _settle(t);
   await _shot(t, '27_progress_plan_more');
+  await t.drag(find.byType(CustomScrollView).first, const Offset(0, 3000));
+  await _settle(t, 600);
+  await t.tap(find.widgetWithText(ChoiceChip, 'Workout'));
+  await _settle(t, 1500);
+  await _shot(t, '32_progress_plan_workout');
+  await t.tap(find.widgetWithText(ChoiceChip, 'Skin'));
+  await _settle(t, 1500);
+  await _shot(t, '33_progress_plan_skin');
   await t.tap(_nav(Icons.auto_awesome_rounded));
   await _settle(t, 3000);
   await _shot(t, '28_coach_plan');
@@ -171,7 +197,7 @@ Future<void> _tour(WidgetTester t, void Function(WidgetTester) phone, bool dark)
   await t.tap(_nav(Icons.insights_rounded));
   await _settle(t, 3000);
   await _shot(t, '17_progress');
-  await t.tap(find.widgetWithText(ChoiceChip, 'Training'));
+  await t.tap(find.widgetWithText(ChoiceChip, 'Workout'));
   await _settle(t, 1500);
   await _shot(t, '18_progress_strength');
   await t.drag(find.byType(CustomScrollView).first, const Offset(0, -700));

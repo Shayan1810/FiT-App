@@ -23,6 +23,8 @@ import '../../workout/domain/repositories/workout_repository.dart';
 import '../../transformation/domain/repositories/transformation_repository.dart';
 import '../../transformation/presentation/transformation_cubit.dart';
 import '../../transformation/presentation/transformation_page.dart';
+import '../../../core/storage/backup_service.dart';
+import '../../hevy/data/hevy_sync.dart';
 import 'settings_cubit.dart';
 import 'theme_cubit.dart';
 import '../../../core/platform/health_brand.dart';
@@ -54,6 +56,8 @@ class _SettingsPageState extends State<SettingsPage> {
           Entrance(child: _AppearanceSection()),
           SizedBox(height: 16),
           Entrance(index: 1, child: _HealthSection()),
+          SizedBox(height: 16),
+          Entrance(index: 2, child: _HevySection()),
           SizedBox(height: 16),
           Entrance(index: 2, child: _GeminiSection()),
           SizedBox(height: 16),
@@ -315,6 +319,41 @@ class _DataSection extends StatelessWidget {
             style: AppText.body,
           ),
           const SizedBox(height: 12),
+          Text(
+            'Backup: copies all your data as one line of text. Keep it in a note or send it to yourself, '
+            'then restore it on a new phone or after reinstalling.',
+            style: AppText.caption,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  icon: const Icon(Icons.backup_rounded),
+                  label: const Text('Copy backup'),
+                  onPressed: () async {
+                    final text = BackupService().export();
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (context.mounted) {
+                      showToast(
+                        context,
+                        'Backup copied (${(text.length / 1024).toStringAsFixed(0)} KB). Paste it somewhere safe.',
+                      );
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.settings_backup_restore_rounded),
+                  label: const Text('Restore'),
+                  onPressed: () => _restore(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.science_rounded),
             label: const Text('Load 3 weeks of demo data'),
@@ -363,6 +402,50 @@ class _DataSection extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final clip = (await Clipboard.getData('text/plain'))?.text ?? '';
+    if (!context.mounted) return;
+    final c = TextEditingController(text: clip.trim().startsWith(BackupService.prefix) ? clip.trim() : '');
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore backup'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Paste the backup text. It replaces all data on this phone.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(hintText: 'FITBACKUP1:…'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Restore')),
+        ],
+      ),
+    );
+    if (text == null || text.trim().isEmpty || !context.mounted) return;
+    final service = BackupService();
+    try {
+      final counts = service.inspect(text);
+      await service.restore(text);
+      if (!context.mounted) return;
+      context.read<ProfileBloc>().add(const ProfileStarted());
+      context.read<InsightsBloc>().add(const InsightsRefreshRequested());
+      await context.read<TransformationCubit>().start();
+      if (!context.mounted) return;
+      final records = counts.values.fold<int>(0, (a, b) => a + b);
+      showToast(context, 'Restored $records records. Restart FiT if anything looks out of date.');
+    } on FormatException catch (e) {
+      if (context.mounted) showToast(context, e.message);
+    }
   }
 }
 
@@ -520,6 +603,120 @@ class _ModeSection extends StatelessWidget {
   }
 }
 
+/// Hevy workout tracker connection.
+class _HevySection extends StatefulWidget {
+  const _HevySection();
+
+  @override
+  State<_HevySection> createState() => _HevySectionState();
+}
+
+class _HevySectionState extends State<_HevySection> {
+  final _key = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _key.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<String?> Function() task) async {
+    setState(() => _busy = true);
+    final msg = await task();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (msg != null) showToast(context, msg);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hevy = sl<HevySync>();
+    final last = hevy.lastSync;
+    return DepthCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const IconBadge(icon: Icons.fitness_center_rounded, color: AppColors.info, onDark: false),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Hevy', style: AppText.title)),
+              Pill(
+                hevy.configured ? 'Connected' : 'Optional',
+                color: hevy.configured ? AppColors.success : AppColors.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Log your gym sessions in Hevy and FiT imports them automatically: sets, reps and kg feed your '
+            'strength charts, training load and Nebula. In Transformation mode a Hevy workout ticks that day\'s '
+            'planned workout. Needs a Hevy API key (Hevy Pro: Settings > Developer).',
+            style: AppText.body,
+          ),
+          if (last != null) ...[
+            const SizedBox(height: 8),
+            Text('Last sync: ${DateFormat('d MMM, HH:mm').format(last)}', style: AppText.caption),
+          ],
+          const SizedBox(height: 12),
+          if (!hevy.configured) ...[
+            TextField(
+              controller: _key,
+              decoration: const InputDecoration(labelText: 'Hevy API key'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _run(() async {
+                      if (_key.text.trim().isEmpty) return 'Paste your Hevy API key first.';
+                      final err = await hevy.connect(_key.text);
+                      if (err != null) return err;
+                      _key.clear();
+                      return (await hevy.sync()).toString();
+                    }),
+              icon: _busy
+                  ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.link_rounded),
+              label: const Text('Connect Hevy'),
+            ),
+          ] else
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: _busy ? null : () => _run(() async => (await hevy.sync()).toString()),
+                    icon: _busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync_rounded),
+                    label: const Text('Sync now'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _run(() async {
+                            await hevy.disconnect();
+                            return 'Hevy disconnected. Imported workouts are kept.';
+                          }),
+                    child: const Text('Disconnect'),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// System / Light / Dark switch.
 class _AppearanceSection extends StatelessWidget {
   const _AppearanceSection();
@@ -599,7 +796,7 @@ class _AboutSection extends StatelessWidget {
                       'FiT',
                       style: TextStyle(color: on, fontSize: 22, fontWeight: FontWeight.w700),
                     ),
-                    Text('Version 2.0.0 · MDG Nebula Project', style: TextStyle(color: soft)),
+                    Text('Version 2.1.0 · MDG Nebula Project', style: TextStyle(color: soft)),
                   ],
                 ),
               ),

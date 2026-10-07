@@ -5,4 +5,7 @@ enum DataSource {
 
   /// Imported from Health Connect (Samsung Health, Google Fit, a watch, …).
   healthConnect,
+
+  /// Imported from the Hevy workout tracker.
+  hevy,
 }

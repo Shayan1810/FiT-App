@@ -8,6 +8,7 @@ import '../../../nutrition/domain/entities/nutrition_facts.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/entities/weight_entry.dart';
 import '../entities/transformation_plan.dart';
+import 'strength_calculator.dart';
 
 /// Everything about the active transformation that the engine needs; built
 /// by `BuildHealthSnapshot` from the repositories.
@@ -102,6 +103,7 @@ class TransformationStatus {
     required this.streak,
     required this.skinStreak,
     required this.yesterday,
+    this.strength = const [],
   });
 
   static const double kcalPerKgFat = 7700;
@@ -152,6 +154,9 @@ class TransformationStatus {
 
   /// Consecutive days with every skincare routine done.
   final int skinStreak;
+
+  /// Strength change per exercise since the plan started (best first).
+  final List<StrengthChange> strength;
 
   bool get started => dayNumber >= 1;
   bool get finished => dayNumber > plan.totalDays;
@@ -303,6 +308,10 @@ class TransformationCalculator {
       adherenceAll: mean(completed.map((d) => d.adherence)),
       streak: streak,
       skinStreak: skinStreak,
+      strength: StrengthCalculator.changes([
+        for (final d in input.days)
+          if (plan.contains(d.date)) ...d.workouts,
+      ]),
     );
   }
 }
